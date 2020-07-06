@@ -12,4 +12,3 @@
   - [SQL](./docs/SQL.md)
 * Linux
   - [Linux](./docs/Linux.md)
-* 线上故障排查
