@@ -194,7 +194,7 @@ jdk6 -XX:PreBlockSpin 默认自旋10次 自适应自旋 重试机制 jvm 控制
 
 ### 总结
 
-![sync](/Users/lgc/Documents/synchronized.png)
+![sync](picture-md/synchronized.png)
 
 ```
 重量级锁，会直接向操作系统申请资源，将等待线程挂起，进入锁池队列阻塞等待，等待操作系统的调度。
