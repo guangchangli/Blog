@@ -22,6 +22,7 @@
 
   * [spring](./docs/spring.md)
   * [dubbo](./docs/dubbo.md)
+  * [zookeeper](./docs/zookeeper.md)
 
 - 常用命令
   - [常用命令](./docs/Common_commands.md)
