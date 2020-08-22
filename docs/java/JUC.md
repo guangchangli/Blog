@@ -194,7 +194,7 @@ jdk6 -XX:PreBlockSpin 默认自旋10次 自适应自旋 重试机制 jvm 控制
 
 ### 总结
 
-![sync](picture-md/synchronized.png)
+![sync](../picture-md/synchronized.png)
 
 ```
 重量级锁，会直接向操作系统申请资源，将等待线程挂起，进入锁池队列阻塞等待，等待操作系统的调度。
@@ -526,7 +526,7 @@ public class InstanceFactory {
 | **TIME_WAITING** | **超时等待状态，改状态不同于 WAITING，他是可以在指定的时间自行返回的** |
 | **TERMINATED**   | **终止状态，表示当前线程已经执行完毕**                       |
 
-![thread_status](picture-md/thread_status.png)
+![thread_status](../picture-md/thread_status.png)
 
 ```
 线程创建之后，调用start()方法开始运行。
@@ -564,7 +564,7 @@ sleep 会清除中断标志位
 volatile 主要是可见性 synchronized 排它
 ```
 
-![monitor](picture-md/monitor.png)
+![monitor](../picture-md/monitor.png)
 
 ```
 对于同步块的实现使用了monitorenter和monitorexit指令
@@ -616,7 +616,7 @@ volatile 主要是可见性 synchronized 排它
 
   更细粒度控制，可以达到纳秒
 
-![wait_notify](picture-md/wait_notify.png)
+![wait_notify](../picture-md/wait_notify.png)
 
 ### join()
 
@@ -848,7 +848,7 @@ final boolean acquireQueued(final Node node, int arg) {
     }
 ```
 
-![acquire](picture-md/acquire.png)
+![acquire](../picture-md/acquire.png)
 
 #### release(int arg)
 
@@ -980,7 +980,7 @@ private boolean doAcquireNanos(int arg, long nanosTimeout)
 nanosTimeout 小于等于 spinForTimeoutThreshold 1000 ns 时候，不会等待，而是进入快速的自旋
 ```
 
-![acquirenanos](picture-md/acquirenanos.png)
+![acquirenanos](../picture-md/acquirenanos.png)
 
 ### 重入锁
 
@@ -1593,7 +1593,7 @@ public class ExchangerTest {
   如果已经满了，交给饱和策略来处理任务
 ```
 
-![threadpool](picture-md/threadpool.png)
+![threadpool](../picture-md/threadpool.png)
 
 ```
 执行 execute
@@ -1607,7 +1607,7 @@ public class ExchangerTest {
 
 **几乎所有的execute()方法调用都是执行步骤2，不需要获取全局锁**
 
-![execute](picture-md/execute.png)
+![execute](../picture-md/execute.png)
 
 #### 线程池的使用
 

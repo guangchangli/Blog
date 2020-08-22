@@ -6,7 +6,7 @@
 
 ### 1.区域划分
 
-​		![区域划分](picture-md/jvm.png)
+​		![区域划分](../picture-md/jvm.png)
 
 ``线程私有 虚拟机栈，本地方法栈，程序计数器``
 
@@ -92,7 +92,7 @@ DirectByteBuffer
 进程内存，jvm运行时内存+本地内存
 ```
 
-![dbb](picture-md/dbb.png)
+![dbb](../picture-md/dbb.png)
 
 ```
 如果用HeapByteBuffer来接收网络数据
@@ -227,7 +227,7 @@ class <init>构造
 
 ### 3对象内存布局
 
-![对象头](picture-md/object_header.png)
+![对象头](../picture-md/object_header.png)
 
 **对象头(Header)、实例数据(Instance Data)和对齐填充(Padding)。**
 
@@ -300,7 +300,7 @@ MarkWord用来存储当前指针指向的对象运行时的一些状态数据
 而klass就含有虚函数表，可以进行method dispatch。
 ```
 
-![object](picture-md/object.png)
+![object](../picture-md/object.png)
 
 ```
 上图可以看到，通过栈帧中的对象引用reference找到Java堆中的对象，再通过对象的instanceOop中的元数据指针klass来找到方法区中的instanceKlass，从而确定该对象的类型。
@@ -403,7 +403,7 @@ jvm配置参数:UseCompressedOops，compressed--压缩、oop--对象指针
  * 对象头16B 数组 8
 ```
 
-![arr](picture-md/arr.png)
+![arr](../picture-md/arr.png)
 
 ```java
 package com.aladdin.jvm;
@@ -542,7 +542,7 @@ c2 将发出一个 RFO (Request For Owner) 请求，它需要拥有这行数据�
 会发生 RFO
 ```
 
-![false_sharing](picture-md/false_sharing.png)
+![false_sharing](../picture-md/false_sharing.png)
 
 ```
 一个运行在处理器 core1上的线程想要更新变量 X 的值
@@ -649,7 +649,7 @@ clazz
 
 ### Garbage Collectors
 
-![garbage-collector](picture-md/garbage-collectors.png)
+![garbage-collector](../picture-md/garbage-collectors.png)
 
 #### Serial
 
@@ -715,7 +715,7 @@ JDk9、10、11、13 G1
 JDK11 可以使用 ZGC
 ```
 
-![m_c](picture-md/m_c.png)
+![m_c](../picture-md/m_c.png)
 
 ```
 新生代回收快，存活相对较少
@@ -727,7 +727,7 @@ JDK11 可以使用 ZGC
 
 #### 对象出生到消亡
 
-![o_b_d](picture-md/o_b_d.png)
+![o_b_d](../picture-md/o_b_d.png)
 
 **进入老年代参数设置 -XX:MaxTenuringThreshold**
 
@@ -738,7 +738,7 @@ MinorGC/YGC 年轻代空间耗尽触发
 MajorGC/FullGC 老年代无法继续分配内存触发，新生代和老年代同时进行回收
 ```
 
-![oo_b_d](picture-md/oo_b_d.png)
+![oo_b_d](../picture-md/oo_b_d.png)
 
 ```
 能在栈上分配就在栈上分配

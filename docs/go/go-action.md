@@ -64,3 +64,26 @@ go get package@version 以更新到特定版本（例如
 
 ```
 
+## 2.Linux install config
+
+```
+https://golang.org/doc/install?download=go1.14.6.linux-amd64.tar.gz
+tar -C /usr/local -xzf go1.14.6.linux-amd64.tar.gz
+export PATH=$PATH:/usr/local/go/bin
+```
+
+```
+export GOPATH=$HOME/go
+export GO111MODULE=on
+GOPROXY=https://goproxy.cn,direct
+export GOBIN=$GOPATH/bin
+export PATH=$PATH:$GOBIN
+```
+
+```
+go help environment
+goroot go install path
+gopath go project path [~/go]
+gobin  go install store file which can run
+```
+
