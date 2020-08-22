@@ -324,3 +324,10 @@ b 表示为装置文件里面的可供存储的接口设备 可随机存取装�
 c 表示为装置文件里面的串行端口设备
 ```
 
+## 刷新dns
+
+```
+yum install -y nscd
+service nscd restart
+```
+
