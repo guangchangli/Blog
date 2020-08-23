@@ -135,7 +135,7 @@ MySQL 通过分析器知道了要做什么，通过优化器知道了要怎么�
 
 ``MySQL 执行流程``
 
-![mysql_process](../picture-md/mysql_process.png)
+<img src="../picture-md/mysql_process.png" alt="mysql_process" style="zoom:50%;" />
 
 ```
 更新流程涉及到两个重要的日志模块，redo log , bin log
@@ -161,7 +161,7 @@ check point 是当前要擦擦除的位置，也是往后推移并且循环的�
 如果 write pos 追上 check point ,表示 redo log 被写满，这个时候不能在执行新的更新
 ```
 
-![redo_log_loop](../picture-md/redolog_loop_write.png)
+<img src="../picture-md/redolog_loop_write.png" alt="redo_log_loop" style="zoom:50%;" />
 
 ```
 有了 redo log Inno DB 就可以保证即使数据库发生异常重启，之前提交的记录都不会丢失，这个能力成为 crash-safe
@@ -196,7 +196,7 @@ redo log 是引擎层 InnoDB 引擎特有的日志，Server 层也有自己的�
 5.执行器调用引擎的提交事务接口，引擎把刚刚写入的 redo log 改成提交状态，更新完成
 ```
 
-![mysql_upadte_process](../picture-md/mysql_update_process.png)
+<img src="../picture-md/mysql_update_process.png" alt="mysql_upadte_process" style="zoom:50%;" />
 
 ### 两阶段提交
 
@@ -210,5 +210,259 @@ redo log 是引擎层 InnoDB 引擎特有的日志，Server 层也有自己的�
 redo log 用于保证 crash-safe 能力
 innodb_flush_log_at_trx_commit 这个参数设置成 1 的时候，表示每次事务的 redo log 都直接持久化到磁盘，保证异常重启 redo log 不丢失
 sync_binlog 这个参数设置成 1 的时候，表示每次事务的 binlog 都持久化到磁盘,保证异常重启 bin log 不丢失
+```
+
+## 锁分类
+
+```
+共享的读锁
+互斥的写锁
+
+全局锁 锁整个数据库，加锁期间，整个库只能进行读操作
+表锁   锁表，同一时刻只有一个写操作
+行锁   锁行
+```
+
+## 事务隔离
+
+```
+事务就是保证一组数据库操作，要么全部成功，要么全部失败，MySQL 事务是在引擎层实现 InnoDB 支持事务，MyISAM 不支持事务
+```
+
+### 隔离性与隔离级别
+
+```
+ACID Atomicity Consistency Isolation Durability 原子性 一致性 隔离型 持久性
+多个事务同时执行的时候可能会出现 脏读，不可重复读，幻读，隔离的越严实，效率就越低
+SQL 标准的事务隔离级别包括 
+1.读未提交 read uncommitted  【一个事务还没提交时，做的改变就能被别的事务看到】
+2.读提交   read committed    【一个事务提交之后，做的改变才会被其他事务看到】
+3.可重复读 repeatable read   【一个事务在执行过程中看到的数据，总是和这个事务在启动的时候看到的数据是一致的】
+4.串行化   serializable      【写会加锁，读也会加锁，当出现读写锁冲突的时候，后访问的事务必须等前一个事务执行完成，才能继续执行】
+```
+
+```
+【事务A】 :【启动事务，查询得到值 1 】															【查询得到值 v1】						【查询得到值 V2】【提交事务A】【查询得到值V3】
+【事务B】 :【启动事务】             【查询得到值 1】 【将 1 改成 2】 								【提交事务B】
+```
+
+<img src="../picture-md/two_transation.png" alt="two_transation" style="zoom:50%;" />
+
+- 读未提交
+
+  ```
+  V1=2 V2=V3=2
+  ```
+
+- 读提交
+
+  ```
+  V1=1 V2=2=V3
+  ```
+
+- 可重复读
+
+  ```
+  V1=V2=1 V3=2
+  ```
+
+- 串行化
+
+  ```
+  V1=V2=1 V3=2
+  ```
+
+  
+
+```
+在实现上，数据库会创建一个视图,访问时候以视图的逻辑结果为准
+【重复读隔离级别下，视图是在事务启动的时候创建的，整个事务存在期间都用这个视图,可以认为是静态视图，不受其他事务更新影响】
+【提交隔离级别下，这个视图是在每个SQL语句开始执行的时候创建的】
+【读未提交隔离级别下直接返回记录上的最新值，没有视图概】
+【串行化隔离级别直接用加锁的方式避免并行访问】
+【Oracle 数据库默认隔离级别就是读提交】
+transaction-isolation READ-COMMITTED
+```
+
+### 事务隔离实现
+
+```
+MySQL 实际上每条记录在更新的时候都会同时记录一条回滚操作，记录上的最新值，通过回滚操作，都可以得到前一个状态的值
+```
+
+```
+假设一个值从 1 被按顺序改成了 2，3，4 在回滚日志中就有三条记录 
+1.将 2 改成 1
+2.将 3 改成 2 
+3.将 4 改成 3
+当前值是 4,在查询这条记录的时候，不同时刻的事务会有不同的 read-view 
+同一条记录在系统中可以存在多个版本，就是数据库的多版本并发控制
+如果想要得到之前的值，就必须将当前值依次执行之前的回滚操作
+```
+
+```
+系统判断没有事务再需要【系统里面没有比这个回滚日志更早的 read-view 的时候？？？】用到回滚日志时，回滚日志才会被删除
+```
+
+### 长事务
+
+```
+长事务意味着系统里面会存在很老的事务视图，由于这些事务随时可能访问数据库里面的任何数据，所以这个事务提交之前，数据库里面它可能用到的回滚记录都必须保留
+这样就会导致大量占用存储空间
+长事务还可能占用锁
+```
+
+### 事务的启动方式
+
+```
+1.显示启动事务语句
+	begin / startt transaction  commit/rollback
+	【 begin/start transaction 命令并不是一个事务的起点
+		 在执行到它们之后的第一个操作InnoDB表的语句（第一个快照读语句），事务才真正启动
+		 如果想要马上启动一个事务，可以使用start transaction with consistent snapshot1
+	 】
+2.set autocommit=0
+	会将这个线程的自动提交关掉
+	意味着如果你还执行了一个select 语句，这个事务就启动了，而且不会自动提交。
+	这个事务持续到你主动执行 commit 或 rollback 语句，或者断开链接
+```
+
+### 如何避免长事务
+
+```
+应用端
+1.确认是否使用了 set autocommit=0，测试环境可以把 MySQL 的 general_log 开起来看日志
+2.确认是否有不必要的只读事务
+3.max_execution_time 控制每个语句执行的最长时间，避免单个语句意外执行太长时间
+数据库端
+1.监控 inforamtion_schema.Innodb_trx 表，设置长事务阈值，超过就报警或者kill
+2.Percona pt-kill
+3.在业务功能测试阶段要求食醋所有的 general_log ，分析日志行为提前发现问题
+4.如果是 MySQL 5.6 或者更新版本，把 innodb_undo_tablespaces 设置为 2(或更大)
+```
+
+### General_log
+
+```
+从MySQL5.1.6版开始，general query log和slow query log开始支持写到文件或者数据库表两种方式。
+并且日志的开启，输出方式的修改，都可以在Global级别动态修改。
+【方式1】
+grep general_log /etc/my.cnf
+general_log = 1
+general_log_file = /tmp/general.log
+重启后全局生效，会将所有 DDL,DML 操作记录
+【方式2】
+/* 需要root用户才有访问此文件的权限 */
+# 查看状态
+show global variables like '%general%';
+-- 输出：general_log   | OFF 默认是关闭的
+# 开启
+-- 设置日志文件保存位置
+set global general_log_file='/tmp/general_log';
+-- 开启日志功能
+set global general_log=on;
+-- 查看状态
+show global variables like '%general%';
+-- 输出：general_log   | ON
+【方式3】
+# 设置输出类型为 table
+set global log_output='table';
+# 开启日志功能
+set global general_log=on;
+# 切换到数据库：mysql
+use mysql;
+# 设置输出类型为 table
+select * from general_log;
+```
+
+```
+【指令总结】
+# 查看日志是否开启
+show variables like 'general_log';
+# 查看日志输出类型  table或file
+show variables like 'log_output';
+# 查看日志文件保存位置
+show variables like 'general_log_file';
+# 设置日志文件保存位置
+set global general_log_file='/tmp/general_log';
+# 开启日志功能
+set global general_log=on;
+# 设置输出类型为 table
+set global log_output='table';
+# 设置输出类型为file
+set global log_output='file';
+【关闭】
+SET GLOBAL general_log = 'OFF';
+【清空】
+# 找到general_log.CSV文件
+cat /dev/null > general_log.csv
+```
+
+
+
+## mvcc
+
+```
+MVCC 数据表中的一行记录，其实可能有多个版本(row)，每个版本有自己的row trx_id,旧版本需要根据当前版本和undo log计算出来
+
+InnoDB为每个事务构造了一个数组，用来保存这个事务启动瞬间，当前正在“活跃”的所有事务ID。“活跃”指的就是，启动了但还没提交,数组里面事务ID的最小值记为低水位，当前系统里面已经创建过的事务ID的最大值加1记为高水位。
+这个视图数组和高水位，就组成了当前事务的一致性视图（read-view），只有版本已提交，而且是在视图创建前提交的才可见
+
+```
+
+
+
+```
+1.查找超过 60s 的事务
+	select * from information_schema.innodb_trx where TIME_TO_SEC(timediff(now(),trx_started))>60
+2.MySQL 5.7.8 新增 设置select的时间,能有效控制在主库的慢查询情况，单位毫秒，超时未结束直接报错【5.6 max_statement_time】
+	show variables like 'max_execution_time';
+```
+
+## 索引
+
+### 常见模型对比
+
+```
+哈希表、有序数组、搜索树
+1.哈希索引不是有序的，做区间查询的速度是很慢的，适用于等值查询场景
+2.有序数组再等值查询和范围查询场景中的性能比较好【二分、循环】，插入数据移动成本较高，适用于静态存储引擎
+3.二叉搜索树 每个节点的做儿子<父节点<右儿子 查找和更新时间复杂度是 O(log（N）)【平衡二叉树】
+```
+
+```
+多叉树
+每个节点有多个儿子，儿子之间的大小保证从左到右递增
+访问磁盘的情况下二叉树访问数据【树深度影响】就比较耗时，这个时候就用 N 叉树
+```
+
+### InnoDB 存储模型
+
+```
+每一个索引在 InnoDB 里面对应一颗 B+ 树，【选择 B+ 树 ，可以很好的配合磁盘的读写特性，减少单次查询的磁盘访问次数】
+根据叶子结点的内容分为 主键索引和非主键索引
+1.主键索引【聚簇索引】的叶子结点存的是整行数据
+2.非主键索引【二级索引】的叶子结点存的是主键的值
+```
+
+### 主键索引和普通索引区别
+
+```
+如果查询条件是索引列，就只需要搜素 B+ 树
+如果查询条件是普通索引列，则需要先搜索普通索引树，得到主键的值，再到主键索引树搜索，这个过程称为回表
+【非主键索引会多扫描一颗索引树】
+```
+
+### 索引维护
+
+```
+B+ 树为了维护有序性，插入新值的时候需要做必要的移动维护
+如果之前的数据所在数据页已经满了，这个时候需要申请一个新的数据页，然后挪动部分数据过去，这个过程称为【页分裂】
+页分裂影响性能和数据页的利用率
+【合并】相邻的两个页由于删除了数据，利用率很低之后会将页做合并，合并的过程可以认为是分裂过程的逆过程
+【自增主键插入数据模式，每次插入一条新纪录都是追加操作，不涉及挪动其他记录，也不会触发叶子结点的分裂】
+【而业务逻辑的字段做主键，不容易保证有序插入，这样写成本相对较高】
+【由于每个非主键索引的叶子结点上都是主键的值，如果主键过长，每个二级索引的叶子结点占用也过大】
+【只有一个唯一索引，典型的 KV 场景，由于没有其他索引，就不用考虑其他索引的叶子结点大小问题，这个时候要尽量使用主键查询，直接将这个索引设置为主键】
 ```
 
