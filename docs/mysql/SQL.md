@@ -4,7 +4,7 @@
 
 
 
-## 缩进
+### 缩进
 
 ```mysql
 select
@@ -115,7 +115,7 @@ select id,COALESCE(address,'NNN') AS address from c_user;
 
 ## 优化
 
-### 参数子查询 EXISTS
+#### 参数子查询 EXISTS
 
 ```
 exists instead of  in
@@ -125,7 +125,7 @@ SQL 会先执行 IN 后面的子查询，将子查询的结果保存在一张临
 exists  不会产生临时表
 ```
 
-### 避免排序
+#### 避免排序
 
 ```
 产生排序
@@ -295,6 +295,8 @@ alter table cus_dict  AUTO_INCREMENT=16;
 
 ## 常用函数方法
 
+### 切割
+
 ```mysql
 增加前缀
 update forumdata_userttt set userLink=concat('http://weibo.com/',userLink) where id>198;
@@ -302,4 +304,28 @@ update forumdata_userttt set userLink=concat('http://weibo.com/',userLink) where
 (从左数第二位之前的字符去掉；包括第二位)
 update forumdata_userttt set userLink=right(userLink,length(userLink)-2) where id >= 1
 ```
+
+### 递归查询
+
+```
+find_in_set（str,strlist）
+str 代表要查询的字符串，strlist 是一个以逗号分隔的字符串 like（'a,b,c）
+查找 str 字符串 在 strlist 中的位置，返回结果为 1～n ,没有找到则返回 0
+eg :
+select FIND_IN_SET('b','a,b,c,d'); 
+select * from dept where FIND_IN_SET(id,'1000,1001,1002'); 
+```
+
+#### *concat*
+
+```
+1.concat 是以逗号为默认的分隔符
+  select CONCAT('M','Y','S','Q','L') from dual; 
+2.concat_ws 可以指定分隔符
+  select CONCAT_WS('_',M','Y','S','Q','L') from dual; 
+3.group_concat 特定分隔符拼接字符串，可以分组，列转行，去重【长度限制 1024，show variables like 'group_concat_max_len';】
+  group_concat( [distinct] 要连接的字段 [order by 排序字段 asc/desc ] [separator '分隔符'] )
+```
+
+##### *group_concat 不支持 limit,加上子查询可以实现 limt*
 
