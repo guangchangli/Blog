@@ -12,7 +12,7 @@
   * [Go 编程之旅](./docs/go/go_travel.md)
   * [Go-fastdfs](./docs/go/go-fast-api.md)
 * Mysql
-  - [MYSQL](./docs/mysql/MySql.md)
+  - [MySQL](./docs/mysql/MySql.md)
   - [SQL](./docs/mysql/SQL.md)
 * Linux
   - [Linux](./docs/linux/Linux.md)
@@ -25,13 +25,13 @@
   - [Netty](./docs/net/Netty4_Action.md)
 * Middleware
 
-  * [spring](./docs/frame/spring.md)
-  * [dubbo](./docs/middleware/dubbo.md)
-  * [dubbo_core](./docs/middleware/dubbo_core.md)
-  * [nginx](./docs/middleware/nginx.md)
-  * [RabbitMq](./docs/middleware/RabbitMQ.md)
+  * [Spring](./docs/frame/spring.md)
+  * [Dubbo](./docs/middleware/dubbo.md)
+  * [Dubbo_core](./docs/middleware/dubbo_core.md)
+  * [Nginx](./docs/middleware/nginx.md)
+  * [RabbitMQ](./docs/middleware/RabbitMQ.md)
   * [Redis](./docs/middleware/Redis.md)
-  * [zookeeper](./docs/middleware/zookeeper.md)
+  * [Zookeeper](./docs/middleware/zookeeper.md)
 * frame
   - [Gradle](./docs/frame/Gradle.md)
   - [spring](./docs/frame/spring)

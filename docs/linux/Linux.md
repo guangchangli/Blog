@@ -261,7 +261,7 @@ hostname
 	-i ip
 	-f 长主机名
 	-d DNS
-
+cat /etc/redhat-release 查看操作系统环境
 ```
 
 ## /etc/profile(global)
@@ -329,5 +329,109 @@ c 表示为装置文件里面的串行端口设备
 ```
 yum install -y nscd
 service nscd restart
+```
+
+## scp-免密登陆
+
+```
+A scp -> B
+1.A 服务器生成 公私密钥 
+	ssh-keygen -t rsa -P ''
+2.重命名避免冲突 id_rsa.pub 拷贝到 B 服务器 /root/.ssh/
+3.将 A.pub 导入 authorized_keys cat A.pub >> authorized_keys
+4.修改权限 chmod 600 authorized_keys
+5.重启【/etc/init.d/sshd restart】
+```
+
+## 主机名
+
+```
+centos7
+1.static hostname
+	静态主机名【内核主机名】，系统启动时从 /etc/hostname 自动初始化的主机名
+2.tansient hostname
+	瞬态主机名【临时分配】,通过 DHCP 或 mDNS 服务器分配
+3.pretty hostname
+	别名主机，展示给终端用户
+```
+
+```
+centos 7，hostnamectl 命令行工具，允许查看、修改与主机相关的配置
+```
+
+### 查看主机名
+
+```
+hostnamectl [status]							查看当前主机名
+hostnamectl --[static|transient|pretty]		
+```
+
+### 修改主机名
+
+#### 临时修改
+
+```
+hostname xxx 重启后恢复
+```
+
+#### 永久生效
+
+```
+1.hostnamectl set-hostname xxx
+修改静态主机名
+【hostnamectl --static set-hostname xxx】 不需要重启
+删除 hostname
+hostname set hostname "" --[static|pretty]
+更新 /etc/hosts
+127.0.0.1 xxx
+::1 			xxx
+```
+
+## 防火墙
+
+### 查看服务状态
+
+```
+systemctl status firewalld
+```
+
+### 查看 firewall 状态
+
+```
+firewall-cmd --state
+```
+
+### 开启、重启、关闭 firewalls.service 服务
+
+```
+【开启】
+service firewalld start
+【重启】
+service firewalld restart
+【关闭】
+service firewalld stop
+```
+
+### 查看防火墙规则
+
+```
+firewall-cmd --list-all
+```
+
+### 查询、开放、关闭端口
+
+```
+【查询端口是否开放】
+	firewall-cmd --query-port=8080/tcp
+【开放端口】
+	firewall-cmd --permanent --add-port=80/tcp
+【移除端口】
+	firewall-cmd --permanent --remove-port=80/tcp
+【重启防火墙】
+	firewall-cmd --reload
+【-----】
+	firewall-cmd 是 linux 提供的操作 firewall 工具
+	--permanent 表示持久，重启后有效
+	--add-port 标识端口
 ```
 

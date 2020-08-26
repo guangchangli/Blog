@@ -11,7 +11,7 @@ AMPQ 是一种协议【protocol】，是一种 binary wirelevel protocol 【链�
 
 ![amqp](../picture-md/amqp.png)
 
-## INSTALL
+## 安装
 
 ```
 需要 erlang 
@@ -23,28 +23,97 @@ rpm -ivh rabbitmq-server-xxx
 ```
 
 ```
-rabbitmq-plugins enable rabbitmq_management   #安装WEB界面插件
-systemctl start rabbitmq-server   #启动
-service rabbitmq-server status    #查看启动状态
-#添加admin
-rabbitmqctl add_user admin admin
-#设置权 
-rabbitmqctl set_permissions -p / admin ".*" ".*" ".*"
-#设置角色
-rabbitmqctl set_user_tags admin administrator
-#设置远程访问
-rabbitmqctl set_permissions -p / admin "." "." ".*"    
-#默认的guest账户只能本地访问
+【安装WEB界面插件】
+	rabbitmq-plugins enable rabbitmq_management   
+【启动】
+	systemctl start rabbitmq-server   
+【查看启动状态】
+	service rabbitmq-server status    
+【添加admin】
+	rabbitmqctl add_user admin admin
+【设置权限】 
+	rabbitmqctl set_permissions -p / admin ".*" ".*" ".*"
+【设置角色】
+	rabbitmqctl set_user_tags admin administrator
+【设置远程访问】
+	rabbitmqctl set_permissions -p / admin "." "." ".*"    
+【默认的guest账户只能本地访问】
 ```
 
+### 角色
+
 ```
-# 停止
-sudo service rabbitmq-server stop
-# 启动
-sudo service rabbitmq-server start
-# 查看状态
-service rabbitmq-server status
+management: 	用户可以访问管理插件
+policymaker:	用户可以访问管理插件，并管理他们有权访问的vhost的策略和参数。
+monitoring: 	用户可以访问管理插件，查看所有连接和通道以及与节点相关的信息。
+administrator:用户可以做任何监视可以做的事情，管理用户，vhost和权限，关闭其他用户的连接，并管理所有vhost的政策和参数。
 ```
+
+### 用户操作
+
+```
+【新建用户】
+	rabbitmqctl add_user username passwd
+【删除用户】
+	rabbitmqctl delete_user username
+【改密码】
+	rabbitmqctl change_password {username}{newPasswd}
+【设置用户角色】
+	rabbitmqctl set_user_tags {username}{tag}
+【设置权限】
+	rabbitmqctl set_permissions -p / admin "." "." ".*"   
+```
+
+### 虚拟主机
+
+```
+【创建一个虚拟主机】
+rabbitmqctl add_vhost vhost_name
+【删除一个虚拟主机】
+rabbitmqctl delete_vhost vhost_name
+```
+
+### 文件系统
+
+```
+【记录rabbitmq运行日常的日志】
+/usr/local/rabbitmq_server/var/log/rabbitmq/rabbit@tms.log:
+【rabbitmq的崩溃报告】
+/usr/local/rabbitmq_server/var/log/rabbitmq/rabbit@tms-sasl.log:
+【rabbitmq的配置文件】
+/usr/local/rabbitmq_server/etc/rabbitmq/rabbitmq.config：
+【rabbit消息持久化文件】
+/usr/local/rabbitmq_server/var/lib/rabbitmq/mnesia/rabbit@tms：
+```
+
+
+
+### 权限
+
+```
+【rabbitmqctl set_permissions [-p vhostpath] {user} {conf} {write} {read}】
+
+【Vhostpath】：虚拟主机，表示该用户可以访问那台虚拟主机；
+【user】 用户名。
+【Conf】 一个正则表达式match哪些配置资源能够被该用户访问。
+【Write】一个正则表达式match哪些配置资源能够被该用户设置。
+【Read】 一个正则表达式match哪些配置资源能够被该用户访问。
+```
+
+
+
+### 启停
+
+```
+【停止】
+	sudo service rabbitmq-server stop
+【启动】
+	sudo service rabbitmq-server start
+【查看状态】
+	service rabbitmq-server status
+```
+
+### 卸载
 
 ```
 rabbitmqctl
@@ -67,6 +136,53 @@ rm -rf /var/lib/rabbitmq
 rm -rf /usr/lib/rabbitmq/lib/rabbitmq_server-3.8.3/
 rm -rf /etc/rabbitmq/
 rm  -rf /var/log/rabbitmq
+```
+
+
+
+## 集群安装
+
+```
+【依赖】
+	socat
+	erlang
+	rabbitmq
+【集群 hosts 映射】
+	xxx mq1
+	xxx mq2
+	xxx mq3
+【修改hostname，作为节点名】
+	/etc/hostname
+	同步 /var/lib/rabbitmq/.erlang.cookie 【集群内节点要一致】
+【后台启动】
+	rabbitmq-server -detached
+【查看状态】
+	rabbitmqctl cluster_status
+【停止】
+	rabbitmqctl stop_app
+	rabbitmqctl start_app
+【查看用户】
+	rabbitmqctl list_users
+```
+
+**服务器重启账户就没了**
+
+```
+cd var/lib/rabbitmq/mnesias
+生成了新的文件，集群节点是根据主机名配置的，所以要一开始就更该静态主机名 
+【hostnamectl set-hostname xxx】，同时修改 /etc/hosts 【127.0.0.1 xxx ::1 xxx】
+```
+
+
+
+### 镜像配置
+
+```
+查看策略信息
+rabbitmqctl list_policies
+配置策略
+rabbitmqctl set_policy ha-all '^' '{"ha-mode":"all","ha-sync-mode":"automatic"}'
+删除策略
 ```
 
 ## action
