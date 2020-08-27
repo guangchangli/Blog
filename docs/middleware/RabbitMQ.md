@@ -27,8 +27,8 @@ rpm -ivh rabbitmq-server-xxx
 	rabbitmq-plugins enable rabbitmq_management   
 【启动】
 	systemctl start rabbitmq-server   
-【查看启动状态】
-	service rabbitmq-server status    
+【查看状态】
+	systemctl status rabbitmq-server      
 【添加admin】
 	rabbitmqctl add_user admin admin
 【设置权限】 
@@ -105,13 +105,11 @@ rabbitmqctl delete_vhost vhost_name
 ### 启停
 
 ```
-【停止】
-	sudo service rabbitmq-server stop
-【启动】
-	sudo service rabbitmq-server start
-【查看状态】
-	service rabbitmq-server status
+systemctl start rabbitmq-server
+systemctl stop rabbitmq-server
 ```
+
+
 
 ### 卸载
 
@@ -154,8 +152,12 @@ rm  -rf /var/log/rabbitmq
 【修改hostname，作为节点名】
 	/etc/hostname
 	同步 /var/lib/rabbitmq/.erlang.cookie 【集群内节点要一致】
-【后台启动】
-	rabbitmq-server -detached
+【节点后台启动】
+	rabbitmq-server -detached 【后台启动无页面】
+【从节点】
+  rabbitmqctl stop_app  【停止】
+  rabbitmqctl join_cluster rabbit@mq1【加入集群】
+  rabbitmqctl start_app 【启动】
 【查看状态】
 	rabbitmqctl cluster_status
 【停止】
