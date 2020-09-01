@@ -416,6 +416,7 @@ service firewalld stop
 
 ```
 firewall-cmd --list-all
+firewall-cmd --zone=public --list-ports 
 ```
 
 ### 查询、开放、关闭端口
@@ -433,5 +434,92 @@ firewall-cmd --list-all
 	firewall-cmd 是 linux 提供的操作 firewall 工具
 	--permanent 表示持久，重启后有效
 	--add-port 标识端口
+```
+
+## 日志 /var/log/
+
+```
+1)【/var/log/secure】：记录登录系统存取数据的文件;
+			例如pop3，ssh，telnet，ftp等都会记录在此.
+2)【/ar/log/wtmp】：记录登录这的信息记录，被编码过，所以必须以last解析;
+3)【/var/log/messages】:session 记录;
+4)【/var/log.boot.log】：记录一些开机或者关机启动的一些服务显示的启动或者关闭的信息;
+5)【/var/log/maillog】：记录邮件的存取和往来;
+6)【/var/log/cron】：用来记录crontab服务的内容;
+8)【/var/log/acpid ,   ACPI - Advanced Configuration and Power Interface】，表示高级配置和电源管理接口。
+			后面的 d 表示 deamon 。 acpid 也就是 the ACPI event daemon 。 也就是 acpi 的消息进程。用来控制、获取、管理 acpi 的状态的服务程序。
+9)【/var/run/utmp】 记录着现在登录的用户;
+10)【/var/log/lastlog】 记录每个用户最后的登录信息;
+11)【/var/log/btmp】 记录错误的登录尝试;
+12)【/var/log/dmesg】内核日志;
+13)【/var/log/cpus CPU】的处理信息；
+14)【/var/log/syslog】 事件记录监控程序日志；
+15)【/var/log/auth.log】 用户认证日志；
+16)【/var/log/daemon.log】 系统进程日志；
+17)【/var/log/mail.err】 邮件错误信息；
+18)【/var/log/mail.info】 邮件信息；
+19)【/var/log/mail.warn】 邮件警告信息；
+20)【/var/log/daemon.log】 系统监控程序产生的信息;
+21)【/var/log/kern】 内核产生的信息;
+22)【/var/log/lpr】   行打印机假脱机系统产生的信息;
+```
+
+## Crond 
+
+**周期性处理任务的守护进程**
+
+#### 系统任务调度
+
+```
+【/etc/crontab】
+SHELL=/bin/bash
+PATH=/sbin:/bin:/usr/sbin:/usr/bin 
+MAILTO=root #任务执行信息发送给 root
+
+# For details see man 4 crontabs
+
+# Example of job definition:
+# .---------------- minute (0 - 59)
+# |  .------------- hour (0 - 23)
+# |  |  .---------- day of month (1 - 31)
+# |  |  |  .------- month (1 - 12) OR jan,feb,mar,apr ...
+# |  |  |  |  .---- day of week (0 - 6) (Sunday=0 or 7) OR sun,mon,tue,wed,thu,fri,sat
+# |  |  |  |  |
+# *  *  *  *  * user-name  command to be executed
+```
+
+```
+星号（*）：代表所有可能的值，例如month字段如果是星号，则表示在满足其它字段的制约条件后每月都执行该命令操作。
+逗号（,）：可以用逗号隔开的值指定一个列表范围，例如，“1,2,5,7,8,9”
+中杠（-）：可以用整数之间的中杠表示一个整数范围，例如“2-6”表示“2,3,4,5,6”
+正斜线（/）：可以用正斜线指定时间的间隔频率，例如“0-23/2”表示每两小时执行一次。同时正斜线可以和星号一起使用，例如*/10，如果用在minute字段，表示每十分钟执行一次。
+```
+
+
+
+#### 用户任务调度
+
+```
+【/etc/cron.deny】 禁用用户列表
+【/var/spool/cron/】 用户名命名文件为用户自定义任务调度信息，一行一个任务
+
+```
+
+#### crond
+
+```
+service crond status
+service crond start
+service crond stop
+service crond reload
+service crond restart
+chkconfig –level 35 crond on # 加入开机启动
+```
+
+#### crontab
+
+```
+crontab [-u user] file # 指定文件作为任务列表文件加入 crontab，不指定将接受输入参数作为文件
+crontab [-u user] [ -e | -l | -r ]
 ```
 

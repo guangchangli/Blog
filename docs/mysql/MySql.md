@@ -1,17 +1,63 @@
-# MySql
+# MySql(skill)
 
 ## 索引
 
-**mysql 索引存储在引擎**
+``存储表中特定列的值，并对列进行排序``
 
 ### 数据结构
 
-``B-tree B+tree``
+``B-tree B+tree Hash索引 FullText索引 R-Tree 索引``
+
+#### Hash
 
 ```
-B-tree 多路搜索平衡树
+1.Hash 索引 只有 Memory 存储引擎支持 hash 索引[默认]，把数据的索引以 hash 值的形式组织起来，检索效率高，一次定位，不需要多次 IO
+2.等值查询比较快，不支持返回查询，因为没有排序，不能避免全表扫描【特别是碰撞】，
+3.不能使用部分索引键查询，使用组合索引情况时，是把多个列数据合并后再计算 hash 值，这个时候单独的列没有计算 hash 
+```
+
+#### FullText
 
 ```
+1.MyISAM 支持，只有 char,varcahr,text 类型支持,用于替代 like 模糊匹配，可以通过多字段组合的全文索引一次性全模糊匹配多个字段
+2.使用 B-Tree 存放，使用的是特定算法，将字段数据分隔后再进行索引（一般四个字节一次分隔）
+3.索引文件存储的是分隔前的索引字符串集合与分隔后的索引信息，对应Btree结构的节点存储的是分隔后的词信息以及他在分隔前的索引字符串集合中的位置
+```
+
+#### B+Tree
+
+```
+适合排序
+带顺序的访问指针，所有索引数据都在叶子结点上，增加了顺序访问指针
+每个叶子结点都有指向相邻叶子结点的指针【提高区间查询效率，找到第一个位置，顺着指针便利就可以一次性访问到所有数据结点】
+```
+
+#### 磁盘预读&局部性处理
+
+```
+磁盘不是严格的按需读取，每次都会预读，读一个数据页【4k】整数倍
+磁盘顺序读取效率比随机读取效率高,随机读取增加了寻址的耗时
+mysql 将一个结点大小设置为一页，每个节点只需要一次 IO 就可以完全载入
+每次新建一个节点的时候，直接申请一个页的空间，可以保证一个节点物理上也存储在一个页里面，os 存储分配按照页对齐，这样就实现了一个结点只需要一次IO
+B-Tree 一次检索最多需 h-1 次 io
+逻辑上和跟结点离得很近的结点，物理存储可能离得很远
+随着树的深度增加，需要更多次的访问磁盘io了，预读就可能失效
+```
+
+#### 没有主键
+
+```
+如果表没有主键，甚至都没有唯一键索引的话
+
+InnoDB内部会基于一个包含了ROW_ID值的列生成一个隐式的聚簇索引，行都会根据这个ROW_ID排序
+ROW_ID是一个6个字节，即48位的单调递增字段。有新数据插入时，就会生成一个新的递增的ROW_ID。所以，根据ROW_ID排序的行，本质上是按照插入顺序排序
+所有用 row_id 列的表，共享同一个被保存在数据字典中的全局序列数，持久化占用内存
+
+如果没有主键，并且也没有一个趋势递增的唯一键，那么所有这些表都会依赖一个全局序列计数器生成的ROW_ID来构造一个隐式聚簇索引，这就会导致竞争从而引起性能问题。
+如果随机主键，那么所有页都会被频繁写入，从而导致无法高效的缓存页。并且频繁的裂变还会导致页填充率不理想，从而额外占用很多的磁盘空间。
+```
+
+
 
 ## 一条 sql 执行过程
 
@@ -178,11 +224,13 @@ redo log 是引擎层 InnoDB 引擎特有的日志，Server 层也有自己的�
 
 ```
 1.1 redo log 是 InnoDB 引擎特有的
-1.2 bin log 是 MySQL 的 Server 层实现的,所有引擎都可以使用
+1.2 bin  log 是 MySQL 的 Server 层实现的,所有引擎都可以使用
+
 2.1 redo log 是物理日志，记录的是【在某个数据页上做了什么修改】
-2.2 bin log 是逻辑日志，记录的是这个语句的原始逻辑，比如给 ID=2 这一行的 c 字段加 1
+2.2 bin  log 是逻辑日志，记录的是这个语句的原始逻辑，比如给 ID=2 这一行的 c 字段加 1
+
 3.1 redo log 是循环写，空间固定会用完
-3.2 bin log 是可以追加写的，文件写到一定大小后会切换到下一个，不会覆盖以前的日志
+3.2 bin  log 是可以追加写的，文件写到一定大小后会切换到下一个，不会覆盖以前的日志
 ```
 
 ### 更新流程
@@ -212,17 +260,6 @@ innodb_flush_log_at_trx_commit 这个参数设置成 1 的时候，表示每次�
 sync_binlog 这个参数设置成 1 的时候，表示每次事务的 binlog 都持久化到磁盘,保证异常重启 bin log 不丢失
 ```
 
-## 锁分类
-
-```
-共享的读锁
-互斥的写锁
-
-全局锁 锁整个数据库，加锁期间，整个库只能进行读操作
-表锁   锁表，同一时刻只有一个写操作
-行锁   锁行
-```
-
 ## 事务隔离
 
 ```
@@ -237,8 +274,8 @@ ACID Atomicity Consistency Isolation Durability 原子性 一致性 隔离型 �
 SQL 标准的事务隔离级别包括 
 1.读未提交 read uncommitted  【一个事务还没提交时，做的改变就能被别的事务看到】
 2.读提交   read committed    【一个事务提交之后，做的改变才会被其他事务看到】
-3.可重复读 repeatable read   【一个事务在执行过程中看到的数据，总是和这个事务在启动的时候看到的数据是一致的】
-4.串行化   serializable      【写会加锁，读也会加锁，当出现读写锁冲突的时候，后访问的事务必须等前一个事务执行完成，才能继续执行】
+3.可重复读 repeatable read   【一个事务在执行过程中看到的数据，总是和这个事务在启动的时候看到的数据是一致的，没有提交事务，对																其他事务也是不可见的】
+4.串行化   serializable      【写会加锁，读也会加锁，当出现读写锁冲突的时候，后访问的事务必须等前一个事务执行完成，才能继续执															行】
 ```
 
 ```
@@ -272,13 +309,12 @@ SQL 标准的事务隔离级别包括
   V1=V2=1 V3=2
   ```
 
-  
 
 ```
 在实现上，数据库会创建一个视图,访问时候以视图的逻辑结果为准
 【重复读隔离级别下，视图是在事务启动的时候创建的，整个事务存在期间都用这个视图,可以认为是静态视图，不受其他事务更新影响】
-【提交隔离级别下，这个视图是在每个SQL语句开始执行的时候创建的】
-【读未提交隔离级别下直接返回记录上的最新值，没有视图概】
+【读提交隔离级别下，这个视图是在每个SQL语句开始执行的时候创建的】
+【读未提交隔离级别下直接返回记录上的最新值，没有视图概念】
 【串行化隔离级别直接用加锁的方式避免并行访问】
 【Oracle 数据库默认隔离级别就是读提交】
 transaction-isolation READ-COMMITTED
@@ -310,6 +346,10 @@ MySQL 实际上每条记录在更新的时候都会同时记录一条回滚操�
 长事务意味着系统里面会存在很老的事务视图，由于这些事务随时可能访问数据库里面的任何数据，所以这个事务提交之前，数据库里面它可能用到的回滚记录都必须保留
 这样就会导致大量占用存储空间
 长事务还可能占用锁
+【查询持续时间超过60s事务】
+	SELECT *
+	FROM information_schema.innodb_trx
+	WHERE TIME_TO_SEC(TIMEDIFF(NOW(), trx_started)) > 60;
 ```
 
 ### 事务的启动方式
@@ -325,6 +365,12 @@ MySQL 实际上每条记录在更新的时候都会同时记录一条回滚操�
 	会将这个线程的自动提交关掉
 	意味着如果你还执行了一个select 语句，这个事务就启动了，而且不会自动提交。
 	这个事务持续到你主动执行 commit 或 rollback 语句，或者断开链接
+3.commit work and chain
+	提交事务并自动启动下一个事务，省去了再次执行begin 语句开销
+	show variables like 'completion_type' cause chaining
+	AND CHAIN子句在当前结束时立即开始新的事务，并且新事务与刚刚结束的事务具有相同的隔离级别
+	新事务也使用与刚刚终止的事务相同的访问模式（READ WRITE或READ ONLY）
+	RELEASE子句会导致服务器在终止当前事务后断开当前客户端会话
 ```
 
 ### 如何避免长事务
@@ -405,12 +451,18 @@ cat /dev/null > general_log.csv
 ```
 MVCC 数据表中的一行记录，其实可能有多个版本(row)，每个版本有自己的row trx_id,旧版本需要根据当前版本和undo log计算出来
 
-InnoDB为每个事务构造了一个数组，用来保存这个事务启动瞬间，当前正在“活跃”的所有事务ID。“活跃”指的就是，启动了但还没提交,数组里面事务ID的最小值记为低水位，当前系统里面已经创建过的事务ID的最大值加1记为高水位。
+InnoDB为每个事务构造了一个数组，用来保存这个事务启动瞬间，当前正在“活跃”的所有事务ID。
+“活跃”指的就是，启动了但还没提交,数组里面事务ID的最小值记为低水位，当前系统里面已经创建过的事务ID的最大值加1记为高水位。
 这个视图数组和高水位，就组成了当前事务的一致性视图（read-view），只有版本已提交，而且是在视图创建前提交的才可见
 
 ```
 
+#### 快照读&当前读
 
+```
+mvcc 可以读到之前的版本数据信息，其实就是快照，只能对比版本号，不能修改
+select .... for update/ in share mode 这类加锁查询只会查询当前记录最新版本数据。我们将这种查询称为当前读。
+```
 
 ```
 1.查找超过 60s 的事务
@@ -502,7 +554,7 @@ eg: index(name,age) 索引项是按照索引定义你里面出现的字段顺序
 【最左前缀可以是联合索引的最左 N 个字段，也可以是字符串最左 M 个 字符】
 【联合索引内字段顺序】
    需要评估索引的复用能力，因为可以支持最左前缀，已经存在 （a,b）这个联合索引后，一般不需要再单独建立 index(a) 了
- 【如果通过调整顺序，可以少维护一个索引，那么这个顺序往往需要优先考虑采用】
+【如果通过调整顺序，可以少维护一个索引，那么这个顺序往往需要优先考虑采用】
 ```
 
 ### 索引下推
@@ -679,4 +731,453 @@ k2 所在的数据页不再内存中
 2.change buffer 中有次记录的情况下，再次更改，会增加一条
 3.purge 其实是从磁盘读数据到内存，然后应用，这一步是更新内存，没有写文件
 ```
+
+### 锁
+
+```
+MySQL 里面的锁可以分为 全局锁、表级锁、行锁
+```
+
+#### 全局锁
+
+```
+flush tables with read lock（FTWRL）
+整个库处于只读状态
+场景 全局逻辑备份
+不加锁，备份得到的库不是一个逻辑时间点的，视图是逻辑不一致的
+解决方式【在可重复读隔离级别下开启一个事务】
+【mysqldump -single-transaction】导出数据之前就会启动一个事务，可以拿到一致性视图
+```
+
+#### 表锁
+
+- 表级锁
+
+  ```
+  lock tables read/write
+  unlock tables 主动释放锁，也可以在客户端断开的时候自动释放
+  lock tables 语法除了会限制别的线程的读写外，也会限制本线程接下来的操作对象
+  ```
+
+  ```
+  show open tables where In_use>=1;
+  select connection_id();
+  
+  线程 A 执行了 lock tables t1 read,t2 write
+  
+  ```
+
+  
+
+### 常用命令
+
+#### 查看库连接状态
+
+```
+show full processlist
+```
+
+#### 查看存储引擎
+
+```
+SHOW ENGINES   #保存在 information_schema.ENGINES
+```
+
+#### 查看存储引擎状态
+
+```
+SHOW ENGINE INNODB STATUS
+```
+
+#### 查看表状态
+
+```
+show table status
+SHOW TABLE STATUS LIKE 'user'\G;
+   Name: user(表名)
+         Engine: InnoDB(存储引擎)
+        Version: 10
+     Row_format: Compact(行的格式，是否固定或压缩)
+           Rows: 4(行数，对于MyISAM该值是精确的，但对于InnoDB该值是估计值)
+ Avg_row_length: 4096(平均每行的字节数)
+    Data_length: 16384(表数据总的字节数)
+Max_data_length: 0(表数据的最大容量，和存储引擎有关)
+   Index_length: 0(索引的大小B)
+      Data_free: 7340032(对于MyISAM表示已分配但没有使用的空间)
+ Auto_increment: 5(下一个AUTO_INCREMENT值)
+    Create_time: 2014-06-17 16:45:53(表的创建时间)
+    Update_time: NULL(表数据的最后修改时间)
+     Check_time: NULL(使用CHECK TABLE或myisamchk检查表的时间)
+      Collation: utf8_bin(表的默认字符集和字符列排序规则)
+       Checksum: NULL(整个表的实时检验和)
+ Create_options: (创建表时指定的其他选项)
+        Comment:
+```
+
+#### 查看表占用空间
+
+```
+SELECT
+    CONCAT(table_schema,'.',table_name) AS 'Table Name',
+    table_rows AS 'Number of Rows',
+    CONCAT(ROUND(data_length/(1024*1024),3),' MB') AS 'Data Size',
+    CONCAT(ROUND(index_length/(1024*1024),3),' MB') AS 'Index Size',
+    CONCAT(ROUND((data_length+index_length)/(1024*1024),3),' MB') AS 'Total Size'
+FROM
+    information_schema.TABLES
+WHERE
+    table_schema = 'db_name' AND table_name = 'table_name';
+```
+
+#### 查看执行计划
+
+```
+explain [partitions] select ** from tableName where condition \G;
+
+          id: 1
+  select_type: SIMPLE
+        table: wechat_user_info
+   partitions: NULL
+         type: index
+possible_keys: NULL
+          key: birthdayIndex
+      key_len: 4
+          ref: NULL
+         rows: 7
+     filtered: 100.00
+        Extra: Using index
+```
+
+```
+id
+select 语句的 ID 编号，优先执行编号较大的查询，如果编号比较大，从上向下执行
+```
+
+```
+select_type 
+1.simple          		一条没有 union 或子查询部分的 SELECT 语句
+2.pimary 							最外层或最左侧的 SELECT 语句
+3.union  							union 语句里面的第二层或最后一条 select 语句
+4.dependent union 		和 union 类型的含义相似，但需要依赖于某个外层查询
+5.union result	  		一条 union 语句的结果
+6.subquery 						自查询中的第一个 select 语句
+7.depebdebt subquery	和 subquery 类型的含义相似，但需要依赖于某个外层查询
+8.derived 					  from 子句里面的查询
+```
+
+```
+type 连接操作类型，性能逐渐下降
+1.system 					表中只有一行
+2.const					  单表最多有一个匹配行
+3.eq_ref					连接查询时，对于前表的每一行，在此表中只查询一条记录，使用了 primary 或 unique
+4.ref							连接查询中，对于前表的每一行，在此表中只查询一条记录，使用了 index
+5.ref_or_null  	  连接查询中，对于前表的每一行，在此表中只查询一条记录，使用了 index，但是条件中有 null 值查询
+6.index_merge		  多个索引合并
+7.unique_subquery [value in (select primary_key from single_table where some_expr)]
+8.index_subquery  [select key_column from single_table where some_expr]
+9.range						只检索给定范围的行 包括 =，<>，>，>=，<=，IS NULL，<=>，BETWEEN，OR，IN()
+10.index					扫描索引树（略比 ALL 快）
+11.ALL						前表的每一行数据都要跟此表匹配，全表扫描
+```
+
+```
+possible_key 	mysql 认为可能会用到的索引，null 表示没有找到索引
+key						检索时，实际用到的索引名称，如果使用了 index_merge 连接类型，此时会列出多个索引名称，NULL表示
+key_len				实际使用的索引长度，如果是复合索引，只显示使用的最左前缀大小
+```
+
+```
+ref 					mysql 用来与索引比较的值，如果是单词 const 或者 ?? 表示比较对象是一个常数
+							如果是某个数据列的名称，则表示比较操作是逐个数据列进行的，NULL 表示没有使用索引
+rows 					mysql 为完成查询而需要在数据表里检索的行数的估算值
+```
+
+```
+extra
+1.using filesort		需要将索引值写到文件中并且排序，这样按照顺序检索相关数据行
+2.using index				mysql 可以不必检查数据文件，只使用索引信息就能检索数据表信息
+3.using temporay		使用过 group by 或 order by 时，需要创建临时表，保存中间结果
+4.using where				利用 select 语句中的 where 子句里的条件进行检索操作
+```
+
+### 优化
+
+#### Sql 索引优化
+
+```
+1.使用正确的索引
+2.查询具体字段，不要 select *,减少网络传输，避免表字段修改产生错误
+3.join 替代子查询，避免产生临时表
+4.小表驱动大表
+5.不要在列上进行运算操作
+6.增加冗余字段避免多表连接，空间换时间
+```
+
+#### 数据库结构优化
+
+```
+1.最小列宽 
+	char varchar 区别 
+		1.char 长度固定 不满会自动补空格，varchar 自动伸缩
+		2.超出都会自动截取
+		3.char(M) m<255 varchar(M) m< columnSize mysql 一行最长 2^31 65535
+	InnoDB
+2.
+```
+
+### 文件
+
+#### 日志文件
+
+- 错误文件  
+
+  ```
+  默认开启 show variable like 'log_error'
+  ```
+
+- 通用查询日志 
+
+  ```
+  记录一般查询语句 show variables like '%general%';
+  ```
+
+- 二进制日志
+
+  ```
+  【是否开启】
+  show variables like '%log_bin%'; 
+  【参数查看】
+  show valiables like '%binlog%';
+  【查看日志文件】
+  show binary logs;
+  ```
+
+- 慢查询日志
+
+  ```
+  记录所有执行时间超时的，默认是 10 s
+  【查看状态】
+  show variables like '%slow_query%';
+  【超时时间配置】
+  show variables like '%long_query_time%';
+  set long_query_time=5; #session 级别的
+  
+  ```
+
+#### 配置文件
+
+**my.cnf** 
+
+``/etc/my.cnf``
+
+```
+[mysqld]
+datadir=/usr/local/mysql/data
+port=3306
+sql_mode=NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES
+symbolic-links=0
+max_connections=600
+innodb_file_per_table=1
+log-error=/usr/local/mysql/data/error.log
+                                          
+```
+
+#### 数据文件
+
+```
+db.opt 文件  记录库默认使用的字符集和校验规则
+frm    文件  存储与表相关的元数据信息，包括表结构的定义信息，每一张表都会有一个frm
+MYD		 文件  MyISAM 存储引擎专用，存放 MyISAM 表的数据（data）,每一张表都有一个 .MYD 文件
+MYI	 	 文件	 MyISAM 存储引擎专用，存放 MyISAM 表的索引相关信息，每一张 MyISAM 表对应一个 .MYI 文件
+ibd 文件和 IBDATA  存放 InnoDB 的数据文件（包括索引）
+ibdata1 文件 系统表空间数据文件，存储表元数据、undo 日志等
+ib_logfile0、ib_logfile1 文件 redo log 日志文件
+```
+
+```
+InnoDB 存储引擎有两种表空间方式，独享表空间和共享表空间
+独享表空间使用 .idb 文件来存放数据，且每一张 InnoDB 表对应一个 .ibd 文件
+共享表空间使用 .ibdata 文件
+所有表共用一个（或多个） .ibdata 文件
+```
+
+```
+show variables like 'datadir'; 
+```
+
+### Undo log
+
+``数据库事务开始之前产生，会将要修改的记录存放到 undo 日志里，当事务回滚时或者数据库崩溃时，可以利用 undo 日志,撤销未提交的事务对数据库产生的影响``
+
+#### 产生和销毁
+
+```
+在事务开始前产生
+事务提交时，并不会立刻删除 undo log ，innodb 会将该事务对应的 undo log 放入到删除列表中
+后面会通过后台线程 purge thread 进行回收处理
+undo log 属于 逻辑日志，记录一个变化过程
+```
+
+#### 存储
+
+```
+undo log 采用 段的方式管理和记录，在 innodb 数据文件中包含一种 rollback segment 回滚段,内部包含 1024 个 undo log segment
+```
+
+**show variables like '%innodb_undo%'**
+
+#### 作用
+
+```
+1.实现事务的原子性
+	事务处理过程中，如果出现了错误或者用户执行了 rollback 语句,可以利用 undo log 中备份的语句将数据恢复到事务开始之前的状态
+2.mvcc
+	undo log 保存了事务未提交之前的版本数据， undo log 中的数据可作为数据旧版本快照供其他并发事务进行快照读
+```
+
+### redo log
+
+``事务中修改的任何数据，将最新的数据备份存储``
+
+```
+随着事务操作的执行，就会生成 redo log,在事务提交时会将生成 redo log 写入 log buffer ，不是随着事务的提交就立刻写入磁盘文件
+等事务草足偶的脏页写入磁盘之后，redo log 的使命就完成了，redo log 占用的空间就可以重用（覆盖写入）
+```
+
+#### 工作原理
+
+```
+redo log 防止在发生故障时间点，尚有脏页未写入表的 ibd 文件中，在重启 MySQL 服务时，根据 redo log 进行重做，实现事务的持久性
+通过 redo log 顺序写，避免直接持久化随机写消耗
+```
+
+​		<img src="../picture-md/redo_log.png" alt="redo_log"/>
+
+#### 配置参数
+
+```
+show variables like '%innodb_log%';
+每个存储引擎至少有一个重做日志文件组，每个文件组至少有两个重做日志文件，默认是 ib_logfile0 和 ib_logfile1
+```
+
+```
+redo buffer 持久化到磁盘策略
+show variables like '%innodb_flush_log_at_trx_commit%';
+0  每秒提交 redo buffer -> os cache -> flush cache to disk 可能丢失 1s 内的事务数据，由后台 master 线程每隔 1s 执行一次操作
+1（默认值） 每次事务提交执行 redo buffer -> os cache -> flush cache to disk 最安全，性能最差的方式
+2 每次事务提交执行 redo buffer -> os cache ，然后由后台 master 进程再每隔 1s 执行 os cache -> flush cache to disk 操作
+【建议使用2，数据库挂了没有数据损失，整个服务器挂了才会损失 1s 事务提交数据】
+```
+
+### Bin log
+
+```
+redo log 属于 innodb 引擎所特有的日志，binary log 是记录所有数据库表结构变更以及表结构变更数据修改的二进制日志
+binlog 日志是以事件形式记录，还包含语句所执行的消耗时间
+使用场景
+1.主从复制
+2.数据恢复
+```
+
+#### 记录模式
+
+```
+binlog 默认为 主机名_binlog-序列号 格式，也可以配置指定名称
+文件记录模式有 statement、row、mixed 三种
+1.row
+	日志会记录每一行数据被修改的情况， 在 slave 端对相同的数据修改 
+ 【可靠，批处理 & alter 会产生大量日志】
+2.statement
+	每一条修改数据的SQL 都会记录到 master 的 binlog 中，slave 在复制的时候 sql 进程会解析成和原来 master 端执行的相同的 SQL 再		次执行,简称语句的复制
+【日志量小，减少磁盘io，性能好，某些情况下导致主从不一致，eg: last_insert_id(),now()】
+3.mixed 
+	以上两种模式的混合使用，一把会使用 statement 模式保存 binlog,对于 statement 无法复制的操作使用 ROW 模式保存 binlog，mysql  	会根据执行的语句选择写入模式
+```
+
+#### 文件结构
+
+```
+用来表示修改操作的数据结构是 log event 
+不同的修改操作对应不同的 log event 
+比较常用的有 query event 、row event、xid event
+binlog 就是各种 log event 的集合
+```
+
+​	![binlog](../picture-md/binlog.png)
+
+#### 写入机制
+
+根据记录模式和操作触发 event 事件生成 log event（事件触发执行机制）
+
+将事务执行过程中产生 log event 写入缓冲区，每个事务线程都有一个缓冲区
+
+``log event 保存在一个 binlog_cache_mngr 数据结构中，该结构中有两个缓冲区，一个是 stmt_cache，用于存放不支持事务的信息，另一个是 trx_cache ,用于存放支持事务的信息``
+
+事务提交阶段会将产生的 log event 写入到外部 binlog 文件中
+
+ ``不同事务是以串行方式将 log event 写入 binlog文件中，所以一个事务包含的 log event 信息在 binlog 文件中是连续的，中间不会插入其他事务的 log event ，binlog 是引擎层上的功能；事务提交第一个就会调用 binlog 功能接口，然后再调用其他存储引擎的功能接口。``
+
+**因此先写bingo ，然后在执行 innodb 的 redo log/undo 和脏页刷新操作**
+
+#### 文件操作
+
+- 状态查看
+
+  ```
+  show variables like '%log_bin%';
+  
+  sql_log_bin  on 会记录恢复操作，[off]
+  ```
+
+- 开启
+
+  ```
+  log-bin=ON
+  log-bin-basename=mysqlbinlog
+  【简化】
+    【模式】
+    binlog-format=ROW
+    【文件名】
+    log-bin=mysqlbinlog
+  ```
+
+- show bingo events
+
+  ```
+  show binary logs; <==> show master logs
+  show master status; # 当前操作
+  show binlog events; # 查看当前事件、内容
+  show binlog events in ''; # 查看指定文件
+  ```
+
+- mysqlbinlog
+
+  ```
+  mysqlbinlog ‘文件名’ 不需要分号 mysql8.0 不支持
+  mysqlbinlog ‘文件名‘ > 'bak.sql'
+  ```
+
+- 恢复数据
+
+  ```
+  //按照指定时间恢复
+  mysqlbinlog --start-datetime="" --stop-datetime="" xxxx | mysql -u root -p
+  //按照事件结点
+  mysqlbinlog --start-position=441 --stop-position=1783 binlog.000005 | mysql -u root -p
+  ```
+
+- mysqldump 定期全部备份数据库数据，mysqlbinlog 增量备份，恢复备份
+
+- 删除 binlog
+
+  ```
+  【删除指定文件】
+  purge binnary logs to 'xxx'
+  【删除指定时间】
+  purge binary logs before '2020-01-01 00:00:00'; 
+  【清除所有】
+  reset master；
+  【自动清理，0 没启动 】
+  show variables like '%expire_logs_days%';  # 定期清理
+  ```
 
