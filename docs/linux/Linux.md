@@ -340,7 +340,6 @@ A scp -> B
 2.重命名避免冲突 id_rsa.pub 拷贝到 B 服务器 /root/.ssh/
 3.将 A.pub 导入 authorized_keys cat A.pub >> authorized_keys
 4.修改权限 chmod 600 authorized_keys
-5.重启【/etc/init.d/sshd restart】
 ```
 
 ## 主机名

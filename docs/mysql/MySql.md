@@ -1,4 +1,4 @@
-# MySql(skill)
+# MySql(sakila)
 
 ## 索引
 
@@ -35,7 +35,7 @@
 #### 磁盘预读&局部性处理
 
 ```
-磁盘不是严格的按需读取，每次都会预读，读一个数据页【4k】整数倍
+磁盘不是严格的按需读取，每次都会预读，读一个数据页【4k】的整数倍
 磁盘顺序读取效率比随机读取效率高,随机读取增加了寻址的耗时
 mysql 将一个结点大小设置为一页，每个节点只需要一次 IO 就可以完全载入
 每次新建一个节点的时候，直接申请一个页的空间，可以保证一个节点物理上也存储在一个页里面，os 存储分配按照页对齐，这样就实现了一个结点只需要一次IO
@@ -85,6 +85,8 @@ ROW_ID是一个6个字节，即48位的单调递增字段。有新数据插入�
 
   ```
   存储引擎负责数据存储和提取,架构模式是插件式的，支持 innodb，mysql5.5之后默认
+  MyISAM 拥有较高的插入和查询的速度
+  MEMORY 是内存型引擎，重启数据丢失
   ```
 
 ### 连接器
@@ -724,6 +726,28 @@ k2 所在的数据页不再内存中
 不是支持持久化吗 redis 一样吗？
 ```
 
+### Innodb 自增主键
+
+```mysql
+自增表里面有 5 条数据,id 从 1 到 5 ,删除了最后两条 【4，5】
+之后重启 MySQL 服务器，再新增一条数据，id= ?
+1.MyISAM 引擎 id=6
+2.InnoDB 引擎 id=4 【MySQL 8.x 以后是 6,索引持久化到了日志中，重启之后自增索引不会丢失】
+
+修改自增偏移
+SELECT
+	auto_increment
+FROM
+	information_schema.`TABLES`
+WHERE
+	table_name = 'cus_dict'
+AND TABLE_SCHEMA = 'cus_product';
+
+alter table cus_dict  AUTO_INCREMENT=16;
+```
+
+
+
 ### 如何构造一个数据无法修改的场景
 
 ```
@@ -732,13 +756,13 @@ k2 所在的数据页不再内存中
 3.purge 其实是从磁盘读数据到内存，然后应用，这一步是更新内存，没有写文件
 ```
 
-### 锁
+## 锁
 
 ```
 MySQL 里面的锁可以分为 全局锁、表级锁、行锁
 ```
 
-#### 全局锁
+### 全局锁
 
 ```
 flush tables with read lock（FTWRL）
@@ -749,7 +773,7 @@ flush tables with read lock（FTWRL）
 【mysqldump -single-transaction】导出数据之前就会启动一个事务，可以拿到一致性视图
 ```
 
-#### 表锁
+### 表锁
 
 - 表级锁
 
@@ -900,9 +924,9 @@ extra
 4.using where				利用 select 语句中的 where 子句里的条件进行检索操作
 ```
 
-### 优化
+## 优化
 
-#### Sql 索引优化
+### Sql 索引优化
 
 ```
 1.使用正确的索引
@@ -913,7 +937,7 @@ extra
 6.增加冗余字段避免多表连接，空间换时间
 ```
 
-#### 数据库结构优化
+### 数据库结构优化
 
 ```
 1.最小列宽 
@@ -925,46 +949,47 @@ extra
 2.
 ```
 
-### 文件
+## 文件
 
-#### 日志文件
+### 错误文件  
 
-- 错误文件  
+```
+默认开启 show variable like 'log_error'
+```
 
-  ```
-  默认开启 show variable like 'log_error'
-  ```
+### 通用查询日志 
 
-- 通用查询日志 
+```
+记录一般查询语句 show variables like '%general%';
+```
 
-  ```
-  记录一般查询语句 show variables like '%general%';
-  ```
+### 二进制日志
 
-- 二进制日志
+```
+【是否开启】
+show variables like '%log_bin%'; 
+【参数查看】
+show valiables like '%binlog%';
+【查看日志文件】
+show binary logs;
+```
 
-  ```
-  【是否开启】
-  show variables like '%log_bin%'; 
-  【参数查看】
-  show valiables like '%binlog%';
-  【查看日志文件】
-  show binary logs;
-  ```
+### 慢查询日志
 
-- 慢查询日志
+```
+记录所有执行时间超时的，默认是 10 s
+【查看状态】
+show variables like '%slow_query%';
+【超时时间配置】
+show variables like '%long_query_time%';
+set long_query_time=5; #session 级别的
 
-  ```
-  记录所有执行时间超时的，默认是 10 s
-  【查看状态】
-  show variables like '%slow_query%';
-  【超时时间配置】
-  show variables like '%long_query_time%';
-  set long_query_time=5; #session 级别的
-  
-  ```
+修改 my.cnf restart
+slow_query_log =1
+slow_query_log_file=/usr/local/mysql/data/localhost-slow.log
+```
 
-#### 配置文件
+### 配置文件
 
 **my.cnf** 
 
@@ -982,7 +1007,7 @@ log-error=/usr/local/mysql/data/error.log
                                           
 ```
 
-#### 数据文件
+### 数据文件
 
 ```
 db.opt 文件  记录库默认使用的字符集和校验规则
@@ -1180,4 +1205,71 @@ binlog 就是各种 log event 的集合
   【自动清理，0 没启动 】
   show variables like '%expire_logs_days%';  # 定期清理
   ```
+
+## 慢查询
+
+## 分库分表
+
+### 单表问题
+
+```
+1.用户请求量太大，io 有上限，需要将请求打散分布到多个服务器
+2.单个数据库处理能力有限，单库所在服务器磁盘有限，单库 io 有瓶颈
+3.持续高负载影响服务实效
+```
+
+### 垂直分库、分表
+
+```
+分库提高吞吐量
+大表分表 【字段多，查询 io、内存都会受影响，更新数据 binlog 文件大，同步有延迟风险】
+```
+
+### 水平分表、分库
+
+```
+数据量大的单张表切分到多张表，表还是都在一个库，库级别的 io 还是存在瓶颈
+单张表数据切分到多个服务器上去，每个服务器具有相应的库与表，只是数据不同，能够有效缓解单机单库瓶颈和压力，需要投入硬件
+```
+
+``水平分库保证数据再同一个服务器上``
+
+```
+Range
+1.按照年月日拆分
+2.按照省市区切分
+3.按照大小拆分 0-100000000
+Hash
+用户 id 取模
+```
+
+### 水平分库场景
+
+#### 站内信 
+
+```
+用户只能看到自己的信息，按照用户 id hash ，所有查询请求都在一个库
+```
+
+#### 用户表
+
+```
+用户 id hash 尽量保证均衡分布
+```
+
+#### 手机号+验证码登录
+
+```
+用户信息采用 id 切分处理，同时存储用户 id 和手机号映射关系（关联表）,关系表采用手机号进行切分，空间换时间
+```
+
+#### 流水表
+
+```
+时间维度，根据场景
+```
+
+## shardingSphere
+
+
 
