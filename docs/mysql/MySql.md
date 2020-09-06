@@ -1,8 +1,54 @@
 # MySql(sakila)
 
-## 索引
+## 引擎
 
-``存储表中特定列的值，并对列进行排序``
+```
+show engines \g;
+innodb T | Supports transactions, row-level locking, and foreign keys ，XA，SavePoints
+```
+
+```
+【查看定义语句】
+show create table xxx;
+【修改引擎】
+alter table xxx engine = myisam;
+```
+
+```
+innode 默认的 rr 可以避免 脏读和不可重复读，删除数据是行删除，不会重建表
+```
+
+### MyISAM
+
+```
+不支持事务、外键[强行加外键，不起作用]
+锁的最小粒度 是表级锁，加锁快，冲突少
+会在磁盘存储三个文件 文件名和表名相同，拓展名分别为 
+.frm（存储表定义）
+.MYD（MYData 存储数据）
+.MYI（MYIndex,存储索引）
+索引文件和数据文件是分离的，首先通过树找到子节点，拿到索引地址，再去寻址
+【MyISAM 只缓存索引文件，不缓存数据文件】
+MyISAM 支持的索引类型有 全局索引，B-Tree 索引，R-Tree 索引
+数据库如果存在宕机，数据文件容易损坏
+```
+
+### InnoBD
+
+```
+.frm 存储表结构
+.ibd 表数据 [数据+索引]
+表数据文件本身就是按照 B+Tree 组织的一个索引结构文件
+聚集索引-叶结点包含了完整的数据记录
+
+
+```
+
+
+
+## 索引数据结构
+
+``存储表中特定列的值，并对列进行排序，索引就是排好序的数据结构``
 
 ### 数据结构
 
@@ -24,18 +70,28 @@
 3.索引文件存储的是分隔前的索引字符串集合与分隔后的索引信息，对应Btree结构的节点存储的是分隔后的词信息以及他在分隔前的索引字符串集合中的位置
 ```
 
+#### B Tree
+
+```
+叶结点的指针为空，结点中的数据 key 从左到右递增排序
+```
+
 #### B+Tree
 
 ```
+非叶子结点不存储 data,只存储 key 【第二级结点存储更多数据】
+叶子结点不存储指针
 适合排序
-带顺序的访问指针，所有索引数据都在叶子结点上，增加了顺序访问指针
+带顺序的访问指针，所有索引数据都在叶子结点上，增加了顺序访问指针,不需要在回溯从根节点重新遍历
 每个叶子结点都有指向相邻叶子结点的指针【提高区间查询效率，找到第一个位置，顺着指针便利就可以一次性访问到所有数据结点】
 ```
 
 #### 磁盘预读&局部性处理
 
 ```
-磁盘不是严格的按需读取，每次都会预读，读一个数据页【4k】的整数倍
+预读：磁盘不是严格的按需读取，每次都会预读，读一个数据页【4k】的整数倍
+局部性原理：当一个数据被用到，其附近的数据也通常会马上被使用  
+查看 MySQL 文件页大小：【show global status like 'Innodb_page_size';】16384 16k
 磁盘顺序读取效率比随机读取效率高,随机读取增加了寻址的耗时
 mysql 将一个结点大小设置为一页，每个节点只需要一次 IO 就可以完全载入
 每次新建一个节点的时候，直接申请一个页的空间，可以保证一个节点物理上也存储在一个页里面，os 存储分配按照页对齐，这样就实现了一个结点只需要一次IO
@@ -57,9 +113,45 @@ ROW_ID是一个6个字节，即48位的单调递增字段。有新数据插入�
 如果随机主键，那么所有页都会被频繁写入，从而导致无法高效的缓存页。并且频繁的裂变还会导致页填充率不理想，从而额外占用很多的磁盘空间。
 ```
 
+## 数据类型
+
+### char varchar
+
+```
+1.char 长度固定 不满会自动补空格，varchar 自动伸缩
+2.超出都会自动截取
+3.char(M) m<255 varchar(M) m< columnSize mysql 一行最长 2^31 65535
+4.varchar() 会补上 1B 记录长度
+```
+
+### blob text
+
+```
+text 只能保存字符数据，blob 可以保存 二进制数据
+text 分为
+	1.text
+	2.mediumtext
+	3.longtext
+blob
+	1.blob
+	2.mediumblob
+	3.longblob
+它们最主要的区别就是存储文本长度不同和存储字节不同，用户应该根据实际情况选择满足需求的最小存储类型
+【TEXT 和 BLOB 在删除数据后会存在一些性能上的问题，为了提高性能，使用 OPTIMIZE TABLE 功能对表进行碎片整理】
+```
+
+### 日期类型
+
+```
+timestamp 和时区相关
+date 表示年月日
+time 表示时分秒
+year 表示年份 有两位和四位格式的年 默认是四位
+```
 
 
-## 一条 sql 执行过程
+
+## sql 执行过程
 
 ### 基本架构
 
@@ -179,7 +271,7 @@ MySQL 通过分析器知道了要做什么，通过优化器知道了要怎么�
 [在某些场景下，执行器调用一次，在引擎内部扫描多行，因此引擎扫描行数跟 rows_examined 并不是完全相同的]
 ```
 
-## 一条更新语句是如何执行的
+## 更新语句是如何执行的
 
 ``MySQL 执行流程``
 
@@ -360,7 +452,7 @@ MySQL 实际上每条记录在更新的时候都会同时记录一条回滚操�
 1.显示启动事务语句
 	begin / startt transaction  commit/rollback
 	【 begin/start transaction 命令并不是一个事务的起点
-		 在执行到它们之后的第一个操作InnoDB表的语句（第一个快照读语句），事务才真正启动
+		 在执行到它们之后的第一个操作InnoDB表的语句（第一个快照读语句），事务才真正启动，这个是基于全库的一个事务id
 		 如果想要马上启动一个事务，可以使用start transaction with consistent snapshot1
 	 】
 2.set autocommit=0
@@ -456,14 +548,39 @@ MVCC 数据表中的一行记录，其实可能有多个版本(row)，每个版�
 InnoDB为每个事务构造了一个数组，用来保存这个事务启动瞬间，当前正在“活跃”的所有事务ID。
 “活跃”指的就是，启动了但还没提交,数组里面事务ID的最小值记为低水位，当前系统里面已经创建过的事务ID的最大值加1记为高水位。
 这个视图数组和高水位，就组成了当前事务的一致性视图（read-view），只有版本已提交，而且是在视图创建前提交的才可见
+```
 
+```
+每个事务都有一个唯一的事务 id transaction id,在事务开始的时候向 InnoDB 事务系统申请的，按申请顺序严格递增
+每行数据也都是有多个版本的，每次事务更新数据的时候，都会生成一个新的数据版本，并且把 transaction id 赋值给这个数据版本的事务 id
+记为 row trx_id ,同时旧的数据要保留，在新的数据版本中，能够有信心可以直接拿到它
+【更新语句都是当前读,先读后写，只能读到当前的值，保留了先前事务的操作痕迹，select 如果加锁也是当前读】
+select xxx from xxx lock in share;
+select xxx from xxx for update;
+```
+
+```
+可重复读核心就是一致性读
+事务更新数据的时候只能用当前读，如果当前的记录的行锁被其他事务占用的话，就需要进入锁等待
+【读提交和可重复读区别】
+可重复读隔离级别下，只需要在事务开始的时候找到 up_limit_id 之后事务里的其他查询都用这个 up_limit_id
+读提交隔离级别下，每一个语句执行前都会重新计算一个 up_limit_id
+```
+
+```
+innodb 行数据有多个版本，每个数据版本都有自己的 row trx_id 
+每个事务或语句有自己的 up_limit_id
+普通查询是一致性读，一致性读回根据 row trx_id 和 up_limt_id 的大小决定数据的可见性
+1.可重复读，查询只承认事务启动前就已经提交完成的数据
+2.对于读提交，查询只承认在语句启动就已经提交完成的数据
+【当前读总是读已经提交完成的最新版本】
 ```
 
 #### 快照读&当前读
 
 ```
 mvcc 可以读到之前的版本数据信息，其实就是快照，只能对比版本号，不能修改
-select .... for update/ in share mode 这类加锁查询只会查询当前记录最新版本数据。我们将这种查询称为当前读。
+select .... for update/ lock in share mode 这类加锁查询只会查询当前记录最新版本数据。我们将这种查询称为当前读。
 ```
 
 ```
@@ -471,6 +588,14 @@ select .... for update/ in share mode 这类加锁查询只会查询当前记录
 	select * from information_schema.innodb_trx where TIME_TO_SEC(timediff(now(),trx_started))>60
 2.MySQL 5.7.8 新增 设置select的时间,能有效控制在主库的慢查询情况，单位毫秒，超时未结束直接报错【5.6 max_statement_time】
 	show variables like 'max_execution_time';
+```
+
+#### 删除10000行数据
+
+```
+1.直接删除 10000 行，单个语句占用时间长，锁的时间也比较长，大事务会导致主从延迟
+2.在一个连接中循环执行 20 次 delete limit 500
+3.20 个连接中同时执行 delete  limit 500 会造成锁冲突
 ```
 
 ## 索引
@@ -746,6 +871,54 @@ AND TABLE_SCHEMA = 'cus_product';
 alter table cus_dict  AUTO_INCREMENT=16;
 ```
 
+### 选错索引
+
+```
+选择索引时优化器的工作
+优化器选择索引的目的，是找到一个最优的执行方案，并用最小的代价去执行语句
+在数据库里，扫描行数时影响执行代价的因素之一，扫描的行数越少，意味着访问磁盘数据的次数越少，消耗的 CPU 资源越少
+扫描行数也不是唯一的判断标准，优化器还会结合是否使用临时表，是否排序等因素进行综合判断
+```
+
+```
+MySQL 在真正开始执行语句之前，并不能精确地知道满足这个条件的记录有多少条，只能根据统计信息来估算记录数
+这个统计信息就是索引的区分度，一个索引上不同的值越多，这个索引的区分度就越好
+一个索引上不同的值的个数，称之为基数，这个基数越大，索引的区分度越好
+可以使用 【 show index from xxx 】看到一个索引的基数
+```
+
+```
+索引基数是怎么得到的？
+采样统计
+把整张表取出来一行行统计，虽然精确但是代价太高
+采样统计的时候，InnoDB 默认会选择 N 个数据页，统计这些页上的不同值，得到一个平均值，然后乘以这个索引的页面数,得到索引基数
+数据表是持续更新的，索引统计信息也不回固定不变，当变更的数据行数超过 1/M 的时候，会自动触发重新做一次索引统计
+MySQL 中有两种存储索引的方式，可以通过设置参数 innodb_stats_oersustent 的值来选择
+	设置为 on 的时候，表示统计信息会持久化存储，默认 N 20,M 10
+	设置为 Off 的时候，表示统计的信息只在内存中，默认 N 8,M 16
+不管是怎么设置，统计信息还是不准确的
+【	analyze table xx 】 命令可以重新统计索引信息
+【回表的代价也是算在里面的】
+```
+
+```
+select * from t where (a between 1 and 1000) and (b between 50000,100000) ;
+明显先走 a 索引回表在过滤 b 需要扫描 1000 行 更好，这个时候可能会选错索引
+可以通过 force index 强行选择一个索引
+MySQL 会根据词法分析的结果分析出可能可以使用的索引作为候选项
+在候选项中依次判断每个索引需要扫描多少行，如果 force index 指定的索引在候选项列表中，就直接选择这个索引，不再评估其他索引执行代价
+```
+
+***select * from xxx  force index(xxx) where xxx***
+
+### 选错索引解决
+
+```
+1.放弃删除索引
+2.引导使用期望的索引
+3.force index(xxx) 不够敏捷通用，when ddl
+```
+
 
 
 ### 如何构造一个数据无法修改的场景
@@ -770,7 +943,12 @@ flush tables with read lock（FTWRL）
 场景 全局逻辑备份
 不加锁，备份得到的库不是一个逻辑时间点的，视图是逻辑不一致的
 解决方式【在可重复读隔离级别下开启一个事务】
-【mysqldump -single-transaction】导出数据之前就会启动一个事务，可以拿到一致性视图
+【mysqldump -single-transaction】导出数据之前就会启动一个事务，可以拿到一致性视图,前提是所有的表引擎都支持事务
+【不要使用set global readonly = true】
+	1.一般用来判断是主库还是从库
+	2.在异常处理机制上有差异，如果执行 FRWRL 命令之后由于客户端呢发生异常断开，MySQL 会自动释放这个锁，整个库又回到可以正常更新的状态
+		将这个库设置为 readonly 之后，如果客户端发生异常，数据库就会一直保持 readonly 状态，这样会导致整个库长时间处于不可写状态，风		险较高
+【 show variables like '%read_only%';】
 ```
 
 ### 表锁
@@ -790,8 +968,69 @@ flush tables with read lock（FTWRL）
   线程 A 执行了 lock tables t1 read,t2 write
   
   ```
-
   
+- MDL (metadata lock)
+
+  ```
+  mdl 不需要显示使用，在访问一个表的时候会被自动加上
+  MDL 的作用是，保持读写的正确性，如果一个查询正在遍历一个表中的数据，执行期间另一个线程对这个表的结构做变更，删除了一列，那么查询线程拿到的结果跟表结构对不上
+  MySQL 5.5 版本中引入了 MDL
+  当对一个表做增删改查操作的时候，加 MDL 读锁，
+  当对一个表做表结构做更改的时候，加 MDL 写锁
+  读锁不互斥，可以有多个线程同时对一个表增删改查
+  读写锁之间，写锁之间是互斥的，用来保证变更表结构操作的安全性，如果两个线程同时给一个表加字段，其中一个要等另一个执行完才能开始执行
+  ```
+
+  ```
+  如果 SessionA 启动一个长事务查询
+  SessionB 也是查询
+  SessionC 修改了表结构
+  SessionA 如果没有提交事务，SessionC 会被阻塞，其他需要申请读锁的请求也会被阻塞，会造成这个表不可读
+  ```
+
+  ```
+  
+  MDL 锁，在语句执行开始时申请，但是语句结束后并不会马上释放，而会等到整个事务提交后再释放
+  所以就要解决长事务问题，要不然获取不到 MDL 锁会一直阻塞，造成锁表
+  如果要做 DDL 变更的表刚好有长事务在执行，要考虑先暂停 DDL，或者 kill 掉这个长事务
+  
+  ```
+
+  ```
+  如果要变更结构是一个热点表，虽然数据量不大，但是上面的请求很频繁，又不得不加这个字段
+  这个时候 kill 可能未必管用，因为新的请求马上就来了，
+  比较理想的是，在 alter table 里面设定等待时间，如果在这个指定时间里面能够拿到 MDL 写锁最好，拿不到也不要阻塞后面的业务语句
+  先放弃，之后在通过重试命令重复这个过程
+  ```
+
+  ***MariaDB 合并了 AliSQL 功能，支持 DDL notwait/wait n***
+
+  ***alter table xxx notwait add column xxx***
+
+  ***alter table xxx wait in n add column xxxx***
+
+### 行锁
+
+```
+InnoDB 事务中，行锁是在需要的时候才加上的，但并不是不需要了就立刻释放，而是要等到事务结束时才释放，这个就是【两阶段锁协议】
+【如果事务中需要锁多个行，要把最可能造成锁冲突、最可能影响并发度的锁尽量往后放】
+```
+
+#### 死锁和死锁检测
+
+```
+出现死锁
+1.直接进入等待，直到超时退出，超时时间可以通过 innodb_lock_wait_timeout 来设置，默认 50s
+2.发起死锁检测，发现死锁后，主动回滚死锁链条中的某一个事务，让其他事务得以继续执行
+	innodb_deadlock_detect 设置为 on 表示开启这个逻辑
+死锁检测消耗 CPU
+1.如果能够确保这个业务一定不会出现死锁，可以临时把死锁检测关掉，可能会出现大量的超时
+2.控制并发度
+		控制客户端并发【如果客户端比较多，服务器并发量还是很高】
+		控制服务端并发，修改源码，对于相同的行的更新，进入引擎之前排队，innodb 内部就不会有大量的死锁检测工作了
+```
+
+
 
 ### 常用命令
 
@@ -924,6 +1163,18 @@ extra
 4.using where				利用 select 语句中的 where 子句里的条件进行检索操作
 ```
 
+#### 优化表文件
+
+```
+OPTIMIZE [LOCAL | NO_WRITE_TO_BINLOG] TABLE tbl_name [, tbl_name] ...
+optimize table tableName;
+被删除的记录被保持在链接清单中，后续的INSERT操作会重新使用旧的记录位置。使用OPTIMIZE TABLE来重新利用未使用的空间，并整理数据文件的碎片
+【OPTIMIZE TABLE只对MyISAM, BDB和InnoDB表起作用，在OPTIMIZE TABLE运行过程中，MySQL会锁定表】
+操作频繁的表可以定期整理一下
+```
+
+
+
 ## 优化
 
 ### Sql 索引优化
@@ -945,6 +1196,7 @@ extra
 		1.char 长度固定 不满会自动补空格，varchar 自动伸缩
 		2.超出都会自动截取
 		3.char(M) m<255 varchar(M) m< columnSize mysql 一行最长 2^31 65535
+		4.varchar() 会补上 1B 记录长度
 	InnoDB
 2.
 ```
@@ -1269,7 +1521,345 @@ Hash
 时间维度，根据场景
 ```
 
+## 常用函数
+
+### 字符函数
+
+```
+length（'xxx'） 获取字符个数 utf8 一个汉字 3B，gbk 2B
+concat（'xxx','_',''） 拼接字符串
+upper （'xx'） 大写 <==> ucase
+lower （'xx'） 小写 <==> lcase
+repeat（'xx',2）重复两份
+substr（str,pos,len）截取 <==> substr（str from pos for len）【从 1 开始】
+instr （'str','c'）  str.indexOf（c） 从 1 开始，没有返回 0
+trim（' xx '） 去除所有空格  trim（'a' from 'abc'）
+ltrim（' xx '）'xx ' 去除左边空格
+rtrim（' xx '）' xx' 去除右边空格
+lpad（'str',6,'*'） ***str 向左填充
+rpad（'str',6,'*'） 
+replace（'str','s','ss'） 用 ss 替换 str 里面的 s -> sstr
+ascii（'xxx'） 返回第一个 ascii 码值
+find_in_set（s1,s2） find s1`s first index in s2
+format（x,n）将数字 x 格式化 小数点后保留 n 位
+insert（rs,start,len,ns）用 ns 替换 rs 从 start 位置开始的 len 位
+	【select insert('baidu.com',1,5,'google');】
+locate（s1,s）s 中 s1 开始的位置
+	【select locate('a','bsaf');】
+position（'sub' in 's'） sub 在 s 中的位置 	position（'a' in 'bac'） 2
+reverse（s） 反转
+strcmp（s1,s2） compare s1,s2  s1>s2 ->1 s1<s2->-1 s1=s2->0
+```
+
+### 数学函数
+
+```
+round（1.5） 四舍五入   2 round（-1.5） 绝对值四射五入 + - -> -2
+ceil（1.5）  向上取整   >= digit 最小整数 ceil（-1.5）-1
+floor（1.5） 向下取整   <= digit 最大整数 ceil（-1.5）-2
+truncate（3.1415926，2）截取 3.14 和 substr 一样
+mod（10，3）取
+abs（x） 绝对值
+avg（expressoin）平均值
+exp（x）e^x 
+greatest（expr1，expr2，expr3） 最大值
+least（expr1，expr2 ...） 最小值
+ln（x） 数字的自然对数
+log（x）自然对数 log e^x
+max min
+pow（x,y） power（x，y） x^y
+rand（） 0-1 随机数 rand（x） x 一样 返回一样
+sign（x） 返回 x 的符号 -1 0 1
+sqrt（x） x 的平方根
+```
+
+### 日期函数
+
+```
+select now();     2020-09-04 10:50:39 <==> select current_timestamp();
+select curdate(); 2020-09-04
+select curtime(); 10:52:19 
+select year(now()); select month(now()); select day(now());
+str_to_date  
+	select str_to_date（'09-04 2020','%m-%d %Y'） 
+	select str_to_date('2020/09/04','%Y/%c/%d');
+date_format
+	select date_format(now(),'%Y年%m月%d日');
+datediff
+ select datediff(now(),'2020-09-16'); -12
+adddate(d,n) 加上 n 天  select adddate(curdate(),10); select adddate(now(),10);
+addtime(t,n) 加上 n 秒  
+day(d)
+year(d)
+month(d)
+dayname(d)    周几 select dayname(now()); select dayname('2020-09-04');
+dayofmonth(d) 月第几天 select dayofmonth(now())
+dayofweek(d)  周的第几天 select dayofweek(now()); 6 周五是第六天
+dayofyear(d)  年的第几天
+extract(type from d) 从日期中获取指定的值 select extract(second from now());
+	microsecond 
+	second
+	minute
+	hour
+	day
+	week
+	month
+	querter
+	year
+	SECOND_MICROSECOND
+  MINUTE_MICROSECOND
+  MINUTE_SECOND
+  HOUR_MICROSECOND
+  HOUR_SECOND
+  HOUR_MINUTE
+  DAY_MICROSECOND
+  DAY_SECOND
+  DAY_MINUTE
+  day_hour 24 小时
+  YEAR_MONTH
+ unix_timestamp（d） 时间戳 select unix_timestamp(now());
+ from_unixtime（d） 时间戳转 时间  select from_unixtime(1599200473);
+```
+
+### 其他函数
+
+```
+select version();
+select database();
+select user();
+```
+
+### 流程控制函数
+
+```
+if select if('10>5','10>5','10<5');
+
+select realColumn 'column',
+     case realColumn
+     when columnValue1 then 'm1'
+     when columnValue2 then 'm2'
+     [else 'm3']
+     end 'newColumn'
+from xx;
+conv(n，j,nj) 将数字 n 从 j 进制转成 nj 进制 select conv(10,10,2); 1010
+```
+
+## 视图
+
+``虚拟的表，可以理解为存储的静态查询语句``
+
+### 创建视图
+
+```
+create view viewName as SELECT xxxx
+```
+
+### 修改视图
+
+```
+alter view viewName AS SELECT xxxx
+```
+
+### 删除视图
+
+```
+drop view viewName
+```
+
+## 触发器
+
+```
+触发器可以在执行 insert、update、delete 的时候执行一些特定的操作
+可以在执行 SQL 语句之前或是之后执行这些操作
+注意事项
+1.触发器能基于行触发，始终基于一条记录触发，而不是一组 SQL 语句，如果需要变动整个数据集而数据集数据量又较大时，触发器效果会比较低
+2.每一个表的一个事件，只能定义一个触发器
+```
+
+```
+可能导致的问题
+1.批量操作不适合使用触发器
+2.一个触发器可能会关联到另外的表操作，会导致数据库服务器负荷也会相应的增加一倍或几倍，如果导致性能问题，会很难定位问题
+3.基于所得操作中，触发器可能会导致锁等待或死锁 触发器执行失败，原来执行的 SQL 语句也会执行失败，很难排查问题
+```
+
+### 语法
+
+```
+CREATE TRIGGER triggerName
+{BEFORE|AFTER}
+{insert|update|delete}
+on <tableName>
+FOR EACH ROW
+<SQL>
+```
+
+```
+delimiter $  设置 SQL 语句结束符
+create trigger trigger_name
+after insert on 
+table_name
+for each row
+begin
+	SQL
+END$
+DELIMITER; 重新设置 SQL 语句的结束符
+```
+
+### 查看、删除
+
+```
+show trigger [from schema_name]
+drop trigger [if exists] [schema_name.]trigger_name;
+```
+
+## 索引
+
+### 操作
+
+```
+1.创建
+create [unique|fulltext|spatial] index index_name
+[usinig index_type]
+on table_name (index_col_name,...)
+2.查看
+show index from table_name;
+3.删除
+drop index index_name on table_name
+alter table table_name drop index index_name
+```
+
+### 索引优缺点
+
+```
+优点
+1.可以减少服务器需要扫描的数据量，从而大大提高查询效率
+2.唯一索引能保证表中数据的唯一性
+3.利用索引对数据存储的特性，可以使查询语句避免排序和创建临时表
+4.索引可以将随机 io 变为顺序 io
+缺点
+1.索引的创建和维护会造成工作量的增加
+2.索引会造成数据量的增加，占用存储空间
+3.不恰当的使用索引会造成服务器重复扫描数据，造成查询浪费
+```
+
+### 索引注意事项
+
+```
+如果数据量非常小，大部分情况下的简单的全表扫描会比使用索引效率更高
+中型表，使用索引非常有效，需要查询条件和字段索引配合
+大型表，建立和使用索引的代价非常高，这个时候应该优先考虑对存储数据进行分组等优化
+```
+
+## 事件调度
+
+``v5.1.6 新增，可以在指定的一个时间点执行一条SQL语句或语句快，也可以在固定时间间隔重复执行，可以精确到秒``
+
+### 开启/关闭 时间调度器
+
+```
+set global event_scheduler=1;
+set @@global.event_scheduler=1;
+set global event_scheduler=on;
+set @@global event_scheduler=on;
+1/on 开启 0/off 关闭
+```
+
+### 事件调度器配置
+
+#### 查看调度器状态
+
+```
+show variables like 'event_scheduler';
+select @@event_scheduler;
+show processlist;
+```
+
+#### 查看某个事件的执行情况
+
+```
+select * from information_schema.EVENTS;
+DESC information_schema.EVENTS [\G];
+select EVENT_NAME,LAST_EXECUTED from information_schema.EVENTS; # 查看事件名、执行时间
+```
+
+
+
+### 创建事件
+
+```
+CREATE
+    [DEFINER = { user | CURRENT_USER }]
+    EVENT
+    [IF NOT EXISTS]
+    event_name
+    ON SCHEDULE schedule
+    [ON COMPLETION [NOT] PRESERVE]
+    [ENABLE | DISABLE | DISABLE ON SLAVE]
+    [COMMENT 'comment']
+    DO event_body;
+    
+    
+    
+eg:
+CREATE EVENT myevent
+    ON SCHEDULE 
+    AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR
+    DO
+      UPDATE myschema.mytable SET mycol = mycol + 1;
+
+```
+
+### 开启/关闭
+
+```
+alter EVENT event_name on COMPLETIOIN PRESERVE ENABLE/DISABLE
+```
+
+## 存储过程
+
+### 语法结构
+
+```
+DROP PROCEDURE IF EXISTS [存储过程名];
+DELIMITER [结束标记]
+CREATE PROCEDURE [存储过程名]([参数1], [参数2] ...)
+BEGIN
+        [存储过程体(一组合法的SQL语句)]
+END [结束标记]
+DELIMITER ;
+```
+
+```
+调用存储过程使用CALL [存储过程名]([参数1], [参数2] ...);语句。
+删除存储过程使用DROP PROCEDURE IF EXISTS [存储过程名];。
+```
+
+
+
+## 函数
+
+### 语法结构
+
+```
+create
+	function sp_name ([function_parameter[...]])
+	retuen type
+  
+eg:
+delimiter //
+create function functionName(id int)
+retturns char(10)
+return (select * from xxx);
+//
+delimiter;
+```
+
+
+
 ## shardingSphere
 
-
+```
+很高级，难 todo
+```
 

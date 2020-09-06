@@ -329,3 +329,17 @@ select * from dept where FIND_IN_SET(id,'1000,1001,1002');
 
 ##### *group_concat 不支持 limit,加上子查询可以实现 limt*
 
+### New table
+
+```
+create table position
+(
+    id     bigint primary key ,
+    name   varchar(20),
+    salary varchar(20),
+    city   varchar(10)
+) engine InnoDB
+  default CHARACTER set utf8mb4
+  collate utf8mb4_general_ci;
+```
+
