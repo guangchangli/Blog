@@ -175,8 +175,179 @@ accessOrder 设置为 false，表示不是访问顺序而是插入的顺序进�
 ### 状态
 
 ```
+new 				新建状态
+runable 		就绪状态，可以运行的线程状态，可能是正在运行或者在排队等待操作系统给他分配 cpu 资源
+blocked 		阻塞等待锁的线程状态，表示处于阻塞状态的线程正在等待监视器锁（sync）
+waiting 		等待状态，一个处于等待状态的线程正在等待另一个线程通知或者被中断
+time_waited 计时等待状态，wait() join()，指定时间返回
+terminnated 终止状态，线程执行完成
+```
 
 ```
+ 1.sleep 运行 -> 阻塞 不释放资源
+ 2.yield 运行 -> 就绪 等待调度，只是暂时让出 cpu 
+ 3.join join(0) 阻塞当前线程
+ 
+ sleep 是静态方法 thread 等待
+ wait 是 object 方法 对象等待 没有参数的 需要被动唤醒
+ join 是实例方法
+ sleep join 都可以抛出异常 可被中断
+ yield 静态方法 异常不可中断
+```
+
+### blocked & waiting
+
+```
+blocked 状态是活跃状态，只是在等待资源锁
+waiting 是自身调用了 object.wait() 或者是 thread.join() 或者是 locksupport.park() 进入了等待状态，需要等待其他行为来中断
+```
+
+### start&run
+
+```java
+start() 属于 Thread 自身方法，并且使用 synchronzied 保证线程安全
+public synchronized void start() {
+    // 状态验证，不等于 NEW 的状态会抛出异常
+    if (threadStatus != 0)
+        throw new IllegalThreadStateException();
+    // 通知线程组，此线程即将启动
+
+    group.add(this);
+    boolean started = false;
+    try {
+        start0();
+        started = true;
+    } finally {
+        try {
+            if (!started) {
+                group.threadStartFailed(this);
+            }
+        } catch (Throwable ignore) {
+            // 不处理任何异常，如果 start0 抛出异常，则它将被传递到调用堆栈上
+        }
+    }
+}
+
+```
+
+```java
+run() 方法是 Runnable 的抽象方法，必须由调用类重写此方法【也就是业务的方法、体】
+public class Thread implements Runnable {
+ // 忽略其他方法......
+  private Runnable target;
+  @Override
+  public void run() {
+      if (target != null) {
+          target.run();
+      }
+  }
+}
+@FunctionalInterface
+public interface Runnable {
+    public abstract void run();
+}
+
+```
+
+```
+1.从执行的效果来说，start() 方法可以开启多线程，让线程从 NEW 状态转换成 RUNNABLE 状态，而 run() 方法只是一个普通的方法。
+2.可调用的次数不同，start() 方法不能被多次调用，否则会抛出 java.lang.IllegalStateException；而 run() 方法可以进行多次调用，	因为它只是一个普通的方法而已。
+```
+
+### 线程优先级
+
+```java
+// 线程可以拥有的最小优先级
+public final static int MIN_PRIORITY = 1;
+// 线程默认优先级
+public final static int NORM_PRIORITY = 5;
+// 线程可以拥有的最大优先级
+public final static int MAX_PRIORITY = 10
+ 
+线程的优先级可以理解为线程抢占 CPU 时间片的概率，优先级越高的线程优先执行的概率就越大，但并不能保证优先级高的线程一定先执行。
+在程序中我们可以通过 Thread.setPriority() 来设置优先级
+
+public final void setPriority(int newPriority) {
+    ThreadGroup g;
+    checkAccess();
+    // 先验证优先级的合理性
+    if (newPriority > MAX_PRIORITY || newPriority < MIN_PRIORITY) {
+        throw new IllegalArgumentException();
+    }
+    if((g = getThreadGroup()) != null) {
+        // 优先级如果超过线程组的最高优先级，则把优先级设置为线程组的最高优先级
+        if (newPriority > g.getMaxPriority()) {
+            newPriority = g.getMaxPriority();
+        }
+        setPriority0(priority = newPriority);
+    }
+}
+```
+
+### 常用方法
+
+#### join()
+
+***在一个线程中调用 other.join() ，这时候当前线程会让出执行权给 other 线程，直到 other 线程执行完或者过了超时时间之后再继续执行当前线程,所以只是暂时阻塞***
+
+```java
+public final synchronized void join(long millis)
+throws InterruptedException {
+    long base = System.currentTimeMillis();
+    long now = 0;
+    // 超时时间不能小于 0
+    if (millis < 0) {
+        throw new IllegalArgumentException("timeout value is negative");
+    }
+    // 等于 0 表示无限等待，直到线程执行完为之
+    if (millis == 0) {
+        // 判断子线程 (其他线程) 为活跃线程，则一直等待
+        while (isAlive()) {
+            wait(0);
+        }
+    } else {
+        // 循环判断
+        while (isAlive()) {
+            long delay = millis - now;
+            if (delay <= 0) {
+                break;
+            }
+            wait(delay);
+            now = System.currentTimeMillis() - base;
+        }
+    }
+}
+
+```
+
+#### jield()
+
+***native 方法，表示给线程调度器一个线程愿意让出 CPU 使用权的暗示，但是线程调度器可能会忽略这个暗示***
+
+```java
+public static void main(String[] args) throws InterruptedException {
+    Runnable runnable = new Runnable() {
+        @Override
+        public void run() {
+            for (int i = 0; i < 10; i++) {
+                System.out.println("线程：" +
+                        Thread.currentThread().getName() + " I：" + i);
+                if (i == 5) {
+                    Thread.yield();
+                }
+            }
+        }
+    };
+    Thread t1 = new Thread(runnable, "T1");
+    Thread t2 = new Thread(runnable, "T2");
+    t1.start();
+    t2.start();
+}
+#每次结果不一定相同
+
+```
+
+
 
 ## 对象
 
