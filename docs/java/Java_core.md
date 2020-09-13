@@ -373,3 +373,25 @@ clone() 是 object 的 navite 方法
 Cloneable 接口只标识具有 clone 功能，需要重写 clone 方法
 ```
 
+## 函数式编程
+
+``1.不可变数据``
+
+```
+不依赖外部数据，不改变外部数据的值
+```
+
+``2.first class functions ``
+
+``3.尾递归优化``
+
+```
+重用 stack ，提升性能
+```
+
+### pipeline
+
+```
+
+```
+

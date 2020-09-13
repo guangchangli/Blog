@@ -700,6 +700,55 @@ where name like 'l%' and age = 10 这个时候 age 就会被过滤
 【创建、删除主键,会将整个表重建，连着做两个修改索引的操作会让第一个语句失效，使用 alter table T engine=Innodb
 ```
 
+### 字符串加索引
+
+``前缀索引，字符串部分作为索引没减少索引长度``
+
+```
+eg: alter table xxx add index index_mail(email(6)); 邮箱的最左六个字符作为索引，通过前缀索引减少占用空间
+如果对 email 加全量索引，先在索引树上查找，找到后回表查一次存到结果集中，在查询索引树下一条不满足就结束了
+如果是前缀索引，先找到输入的索引值记录，回表，可能存在多个前缀相同的，需要多次回表，知道索引树上前缀匹配完
+```
+
+```
+使用前缀索引会增加额外的记录扫描次数，定义好长度，可以节省空间和查询成本
+索引关注的是区分度，区分度越高意味着重复的键值越少，可以通过统计索引上有多少不同的值来判断要使用多长的前缀
+eg:
+select count(distinct email) as count from xxx;
+select count(distinct left(email,4)) as count from xxx;
+找到一个合适的能接受的比例
+```
+
+#### 前缀索引对覆盖索引的影响
+
+```
+前缀索引需要回表在查一次，系统不确定前缀索引是否截断了完整信息，用不上覆盖索引的优化
+```
+
+#### 前缀索引区分度不高
+
+``索引选取的越长，占用空间越大，相同的数据页能放下的索引值就越少，搜索的效率就越低``
+
+```
+eg: 身份证
+1.倒序存储
+	身份证倒过来存 每次查询倒过来查
+	select xxx from xxx where id_card=reserve('input');
+	身份证最后六位没有地址重复逻辑，最后六位很可能就提供了足够的区分度
+2.hash 字段
+	添加字段保存身份证的校验码，同时在这个字段上创建索引 crc32()
+	每次插入数据的时候同时使用 crc32（） 得到校验码存储，由于校验可能存在冲突，也就是说两个不同的身份证号通过 crc32() 函数得到的结果	可能是相同的，所以 sql where 还是要判断 真实列是否相同
+```
+
+```
+使用倒序存储和使用 hash 字段都不支持范围查询，倒序存储是按照存储的倒序字符串排序，hash 也是只能支持等值查询
+1.倒序不会消耗额外的存储空间，hash 需要额外添加一个字段，倒序存储使用前缀长度过长消耗也是很大的
+2.reverse（）和 crc32() 相比，reverse 消耗更小
+3.hash 虽然有冲突的概率，但是概率很小，可以认为每次查询的平均扫描行数接近 1,倒序存储方式使用前缀索引，还是会增加扫描行数
+```
+
+
+
 ### 普通索引和唯一索引
 
 #### 查询
@@ -1190,7 +1239,7 @@ optimize table tableName;
 
 ### 数据库结构优化
 
-```
+``` 
 1.最小列宽 
 	char varchar 区别 
 		1.char 长度固定 不满会自动补空格，varchar 自动伸缩
@@ -1198,7 +1247,10 @@ optimize table tableName;
 		3.char(M) m<255 varchar(M) m< columnSize mysql 一行最长 2^31 65535
 		4.varchar() 会补上 1B 记录长度
 	InnoDB
-2.
+2.procedure analysse([max_elements],[max_memory]) mysql8.0 没有，5.6添加
+  【max_elements（默认值为256）是ANALYSE()每列中可注意的最大不重复值的数量 。用于ANALYSE()检查最佳数据类型是否为类型 ENUM】 	   【如果有多个max_elements不同的值，则ENUM不是建议的类型】
+	【max_memory（默认值8192）是ANALYSE()在尝试查找所有不同值时应为每列分配的最大内存量 】
+	【PROCEDURE语句中不允许 使用子句 UNION】
 ```
 
 ## 文件
@@ -1575,7 +1627,7 @@ sqrt（x） x 的平方根
 
 ### 日期函数
 
-```
+```mysql
 select now();     2020-09-04 10:50:39 <==> select current_timestamp();
 select curdate(); 2020-09-04
 select curtime(); 10:52:19 
@@ -1854,6 +1906,49 @@ return (select * from xxx);
 //
 delimiter;
 ```
+
+## 主从复制
+
+```
+从结点启动 io 线程监测主结点 bin log 变化，读到 relay log 里，SQL 线程负责从 realy log 日志里面读出 binlog 内容
+更新到  slave 数据库中，保证主从数据库数据一致
+```
+
+```
+一主一从 master 宕机 只能读 不能写
+主主复制 互为主从
+一主多从
+多主一从
+级联复制
+```
+
+## MySQL 5.7 安装
+
+- 查看是否自带mysql
+
+  ```
+  yum list installed | grep mysql
+  ```
+
+- 删除系统自带 mysql 以及依赖
+
+  ```
+  yum -y remove mysqlibs.x86_64
+  ```
+
+- 安装 weget 
+
+  ```
+  yum install -y wget 
+  ```
+
+- 添加 rpm 源，选择较新的源
+
+  ```
+  wget dev.mysql.com/get/mysql-community-release-el5-5.noarch.rpm
+  ```
+
+  
 
 
 

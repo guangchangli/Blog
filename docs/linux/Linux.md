@@ -245,6 +245,83 @@ tar
 9、*.zip 用 unzip 解压
 ```
 
+## cut
+
+```
+cut -b list [-n] [file...]
+cut -c list [file...]
+cut -f list [-d delim] [-s] [file...]
+
+-d 表示字节 byte
+-c 表示字符 char
+-f 表示字段 field
+-d 表示分隔符 默认 tab delimeter
+-n 具体数字 
+list 表示范围 从 1 开始 -b1-3 从 1 到 3 字节
+cut -d: -f1  /etc/passwd 分隔符为: 取出第一个字段
+cut -c1-8 /etc/passwd 截取每行的第 1-8 个字
+```
+
+## awk
+
+```
+
+```
+
+## 流量统计vnstat
+
+```shell
+vnstat 服务器流量统计
+vnstat -d 统计天
+vnstat -m 统计月
+rx 接受流量 tx 发送流量
+【install】
+yum install epel-release -y && yum install -y vnstat  
+1.创建监控数据库
+	vnstat -u -i eth0
+2.启动服务并设置开机启动
+	service vnstat start
+ 	chkconfig vnstat on
+ 
+```
+
+##  实时流量iftop
+
+```
+yum install -y iftop
+iftop -i eth0
+查看特定ip 带宽访问情况 
+iftop -i eth0 -B -F ip 单位是Byte
+"TX"：从网卡发出的流量
+"RX"：网卡接收流量
+"TOTAL"：网卡发送接收总流量
+"cum"：iftop开始运行到当前时间点的总流量
+"peak"：网卡流量峰值
+"rates"：分别表示最近2s、10s、40s 的平均流量
+```
+
+## vmstat
+
+```
+vmstat 2 1 第一个参数是采样的时间间隔，第二个参数是采样的次数
+r 表示运行队列 进程队列
+b 阻塞进程
+swpd 虚拟内存使用大小 >0 表示无力内存不足
+free 空闲的物理内存
+buffer 缓存
+cache 缓冲
+sl 每秒从磁盘读入虚拟内存大小 
+so
+bl
+bo
+cs
+us
+sy
+id
+wt
+
+```
+
 
 
 ## 系统显示
@@ -262,7 +339,39 @@ hostname
 	-f 长主机名
 	-d DNS
 cat /etc/redhat-release 查看操作系统环境
+cat /proc/cpuinfo  查看 cpu 配置信息  sublings 逻辑核心数 cpu cores 物理核心数
+fdisk -l 查看所有分区
+swapon -s 查看所有交换分区
+route -n 查看路由表
+netstat -lntp 查看所有监听的端口
+netstat -antp 查看所有建立的连接
+netstat -s 查看网络统计信息进程
+ethtool [etho] 查看网卡带宽
 ```
+
+## 用户相关
+
+```
+w 查看活动用户
+id 查看周定用户信息
+last 查看用户登陆日志
+cut -d: -f1 /etc/passwd 所有用户名
+```
+
+
+
+## libc glibc glib
+
+```
+glibc libc 都是 linux 的 c 函数库‘
+libc 是 ANSI c 函数库  标准库
+glibc 是 GUN c 函数库  基于标准库实现，封装
+libc 泛指符合实现了 c 标准规定的内容
+查看版本
+【ldd  --version】
+```
+
+
 
 ## /etc/profile(global)
 

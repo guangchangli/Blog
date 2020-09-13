@@ -107,6 +107,10 @@ rabbitmqctl delete_vhost vhost_name
 ```
 systemctl start rabbitmq-server
 systemctl stop rabbitmq-server
+
+rabbitmqctl stop_app
+#集群结点剔除从结点停止
+rabbitmqctl -n rabbit@mq2 stop_app
 ```
 
 
@@ -131,7 +135,7 @@ yum -y remove erlang.x86_64
 删除相关文件
 rm -rf /usr/lib64/erlang
 rm -rf /var/lib/rabbitmq
-rm -rf /usr/lib/rabbitmq/lib/rabbitmq_server-3.8.3/
+rm -rf crabbitmq_server-3.8.3/
 rm -rf /etc/rabbitmq/
 rm  -rf /var/log/rabbitmq
 ```
@@ -186,6 +190,17 @@ rabbitmqctl list_policies
 rabbitmqctl set_policy ha-all '^' '{"ha-mode":"all","ha-sync-mode":"automatic"}'
 删除策略
 ```
+
+### 集群结点移除
+
+```
+从结点
+rabbitmqctl -n rabbit@mq2 stop_app
+主节点
+rabbitmqctl  -n rabbit@mq1 forget_cluster_node rabbit@mq2
+```
+
+
 
 ## action
 
