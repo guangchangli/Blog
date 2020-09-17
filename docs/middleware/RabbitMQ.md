@@ -16,6 +16,7 @@ AMPQ 是一种协议【protocol】，是一种 binary wirelevel protocol 【链�
 ```
 需要 erlang 
 socat 支持多协议，用于协议处理，端口转发，rabbitmq 依赖于 socat 
+github
 rpm -ivh erlang 
 erl -version
 yum install -y socat
@@ -560,15 +561,137 @@ public static void main(String[] args) throws IOException {
     }
 ```
 
-### 总结
+# 总结
 
 - 不需要交换器 direct queue  绑定 queue 附加信息
 - 需要交换器 channel 绑定 exchange queue【temporary】fanout【广播】｜对应 【tag】分组
 - 持久化、消息确认机制 保证高可用
 
-## boot-action
+## 队列
+
+[Queue_Type classic vs quorum from Official Documents](https://www.rabbitmq.com/quorum-queues.html)
+
+```
+后台页面添加队列 type 可选 quorum classic
 
 
+Quorum能更好的保证信息的安全性，节点间同步更及时。不会出现mirror queue出现的那样，两个节点件同一queue的数量落差很大的情况。
+Quorum queue到特定负载后，不能接受新消息就不会继续接受新消息了。保持自身的平衡。
+当memory达到high water mark时，rabbitmq开始不接受消息
+```
+
+### Quorum Queue
+
+#### what is quorum
+
+``分布式大多数结点之间的一致性状态协议``
+
+#### Differences From Classic Queues
+
+```
+1.Classic Queue 很难提供清晰的错误处理语义
+2.Classic Queue 某些失败的情形会导致过早镜像确认消息，可能导致数据丢失
+3.Quorum Queue 提供了更简单、安全定义良好的失败处理语义，用户更统一排查问题
+```
+
+
+
+## 概念&消息模式
+
+```
+生产者 	消息的发送者，可以将消息发送到交换机
+消费者		消息的接受者，从队列获取消息进行消费
+交换机		接受生产者发送的消息，根据路由键发送给指定队列
+队列		 存储从交换机发来的消息
+
+交换机类型
+1.direct 
+	点对点消费
+2.work 队列 
+	多个消费者绑定到一个队列，共同消费队列中的消息，队列中的消息被消费，就会消失，不会被重复消费
+	消息消费者默认均衡消费，如果某个消费服务慢会拖慢整体处理性能，这个时候已经分配好了
+	负载均衡的平均消费，消费者分配到消息后，队列就标记为删除了
+	如果消费者没有处理玩消息出了问题，就会丢失消息
+3.fanout
+	
+4.routing
+5.topic
+	
+	
+```
+
+#### args
+
+```
+1.x-message-ttl：消息的过期时间，单位：毫秒；
+2.x-expires：队列过期时间，队列在多长时间未被访问将被删除，单位：毫秒；
+3.x-max-length：队列最大长度，超过该最大值，则将从队列头部开始删除消息；
+4.x-max-length-bytes：队列消息内容占用最大空间，受限于内存大小，超过该阈值则从队列头部开始删除消息；
+5.x-overflow：设置队列溢出行为。这决定了当达到队列的最大长度时消息会发生什么。有效值是drop-head、reject-publish或reject-publish-dlx。仲裁队列类型仅支持drop-head；
+6.x-dead-letter-exchange：死信交换器名称，过期或被删除（因队列长度超长或因空间超出阈值）的消息可指定发送到该交换器中；
+7.x-dead-letter-routing-key：死信消息路由键，在消息发送到死信交换器时会使用该路由键，如果不设置，则使用消息的原来的路由键值
+8.x-single-active-consumer：表示队列是否是单一活动消费者，true时，注册的消费组内只有一个消费者消费消息，其他被忽略，false时消息循环分发给所有消费者(默认false)
+9.x-max-priority：队列要支持的最大优先级数;如果未设置，队列将不支持消息优先级；
+10.x-queue-mode（Lazy mode）：将队列设置为延迟模式，在磁盘上保留尽可能多的消息，以减少RAM的使用;如果未设置，队列将保留内存缓存以尽可能快地传递消息；
+11.x-queue-master-locator：在集群模式下设置镜像队列的主节点信息。
+```
+
+
+
+# boot-action
+
+## 交换器类型
+
+```java
+    public static final String DIRECT = "direct";
+    public static final String TOPIC = "topic";
+    public static final String FANOUT = "fanout";
+    public static final String HEADERS = "headers";
+    public static final String SYSTEM = "system";
+```
+
+## Queue
+
+```
+@QueueBinding(
+						#默认指定了queue 名字就是 true 默认持久化
+            value = @Queue(value = "gopher",
+                    durable = "true",
+                    autoDelete = "false"),
+            exchange = @Exchange(name = "boot",
+                    durable = "true",
+                    type = "topic",
+                    ignoreDeclarationExceptions = "true",
+                    autoDelete = "false"),
+            key = "springboot.#"
+```
+
+
+
+## RabbitmqListener
+
+```java
+  @RabbitListener(bindings = @QueueBinding(
+            value = @Queue(value = "gopher",
+                    durable = "true",
+                    autoDelete = "false"),
+            exchange = @Exchange(name = "boot",
+                    durable = "true",
+                    type = "topic",
+                    ignoreDeclarationExceptions = "true",
+                    autoDelete = "false"),
+            key = "springboot.#"
+    )
+    )
+```
+
+
+
+## topic
+
+```
+
+```
 
 
 

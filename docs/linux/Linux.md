@@ -74,6 +74,17 @@ ctrl + p	上一条命令
 ctrl + r	搜索命令历史
 ```
 
+## Iterm2 ssh 长连接
+
+```
+～/.ssh/config
+Host *
+    ServerAliveInterval 60
+ssh客户端每隔60秒给远程主机发送一个no-op包，no-op是无任何操作的意思，这样远程主机就不会关闭这个SSH会话
+```
+
+
+
 ## basic Command
 
 ```
@@ -170,6 +181,68 @@ top -p 进程号
 列出当前系统打开文件，访问网络连接
 lsof -i:port
 ```
+
+## jps
+
+```
+jps(Java Virtual Machine Process Status Tool)是JDK 1.5提供的一个显示当前所有java进程pid的命令
+jps位于jdk的bin目录下
+Java程序在启动以后，默认会在java.io.tmpdir指定的临时文件夹目录下生成一个类似于hsperfdata_{当前系统用户名称} 的文件夹
+linux /tmp/hsperfdata_{userName}/
+里面的文件根据Java进程的pid命名
+jps -v 查看 jvm 参数 查看 java.io.tmpdir 目录设定
+如果 java 进程启动 jvm 参数没有设置 jinfo -sysprops pid 查看
+使用命令 [ jps [-q] [-mlvV] [<hostname>[:<port>]] ]
+	-q：只显示pid，不显示class名称、jar文件名和传递给main方法的参数
+	-m：输出传递给main方法的参数,在嵌入式jvm上可能是null
+	-l：输出程序 main class 的完整 package 名或程序的jar文件完整路径名
+	-v：输出传递给JVM的参数
+【只能显示当前用户的java进程，要显示其他用户的还是只能用unix/linux的ps命令】
+```
+
+## Jps 查不到进程
+
+```
+jps、jconsole、jvisualvm等工具的数据来源就是这个文件（/tmp/hsperfdata_userName/pid)。所以当该文件不存在或是无法读取时就会出现jps无法查看该进程号，jconsole无法监控等问题
+```
+
+```
+1.磁盘读写、目录权限问题 若该用户没有权限写/tmp目录或是磁盘已满，则无法创建/tmp/hsperfdata_userName/pid文件。或该文件已经生成，	 但用户没有读权限
+
+2.临时文件丢失，被删除或是定期清理 对于linux机器，一般都会存在定时任务对临时文件夹进行清理，导致/tmp目录被清空。这也是我第一次碰到该现象的原因。常用的可能定时删除临时目录的工具为crontab、redhat的tmpwatch、ubuntu的tmpreaper等等
+	这个导致的现象可能会是这样，用jconsole监控进程，发现在某一时段后进程仍然存在，但是却没有监控信息了。
+	
+3.java进程信息文件存储地址被设置，不在/tmp目录下 上面我们在介绍时说默认会在/tmp/hsperfdata_userName目录保存进程信息，但由于以上
+
+1、2所述原因，可能导致该文件无法生成或是丢失，所以java启动时提供了参数(-Djava.io.tmpdir)，可以对这个文件的位置进行设置，而jps、jconsole都只会从/tmp目录读取，而无法从设置后的目录读物信息
+```
+
+## jstack
+
+``显示当前java虚拟机线程堆栈集合快照，（java stack , native stack）``
+
+```
+排查问题
+wait on monitor entry： 被阻塞的,肯定有问题
+runnable ： 注意IO线程
+in Object.wait()： 注意非线程池等待
+```
+
+```
+当 jstack [-l] pid 没有响应的时候强制打印栈信息
+ -F  to force a thread dump. Use when jstack <pid> does not respond (process is hung)
+打印java和native c/c++框架的所有栈信息.
+ -m  to print both java and native frames (mixed mode)
+打印关于锁的附加信息,例如属于java.util.concurrent的ownable synchronizers列表
+ -l  long listing. Prints additional information about locks
+ -h  or -help to print this help message
+```
+
+```
+虚拟机执行Full GC时,会阻塞所有的用户线程。因此,即时获取到同步锁的线程也有可能被阻塞。 在查看线程Dump时,首先查看内存使用情况
+```
+
+
 
 ## nc
 
@@ -358,8 +431,6 @@ last 查看用户登陆日志
 cut -d: -f1 /etc/passwd 所有用户名
 ```
 
-
-
 ## libc glibc glib
 
 ```
@@ -437,6 +508,7 @@ c 表示为装置文件里面的串行端口设备
 
 ```
 yum install -y nscd
+systemctl start nscd
 service nscd restart
 ```
 
@@ -450,6 +522,71 @@ A scp -> B
 3.将 A.pub 导入 authorized_keys cat A.pub >> authorized_keys
 4.修改权限 chmod 600 authorized_keys
 ```
+
+## 开机启动
+
+```
+/etc/inittab 
+# inittab is no longer used.
+#
+# ADDING CONFIGURATION HERE WILL HAVE NO EFFECT ON YOUR SYSTEM.
+#
+# Ctrl-Alt-Delete is handled by /usr/lib/systemd/system/ctrl-alt-del.target
+#
+# systemd uses 'targets' instead of runlevels. By default, there are two main targets:
+#
+# multi-user.target: analogous to runlevel 3
+# graphical.target: analogous to runlevel 5
+#
+# To view current default target, run:
+# systemctl get-default
+#
+# To set a default target, run:
+# systemctl set-default TARGET.target
+```
+
+```
+/etc/init.d 下六个文件夹对应六个级别 都是以soft link 形式存在
+init.d
+rc0.d
+rc1.d
+rc2.d
+...
+rc6.d
+rc.local
+
+0表示：表示关机
+1表示：单用户模式
+2表示：无网络连接的多用户命令行模式
+3表示：有网络连接的多用户命令行模式
+4表示：不可用
+5表示：带图形界面的多用户模式
+6表示：重新启动
+```
+
+```
+chkconfig --list 【Deprecated】
+#shows SysV services only and does not include native  systemd services
+chkconfig servicename on/off # 设置开机自启动
+#系统服务
+systemctl list-sockets  # 查看内存中的 socket
+systemctl list-units # 查看内存中的 unit
+systemctl list-unit-files 
+systemctl 【start|stop|reload|restart】 unit
+systemctl is-active parrern...
+systemctl is-faild  pattern...
+systemctl status [pattern ...|pid ...]
+systemctl show [pattern..|pid...]
+systemctl list-dependencies [unit] 
+#查看服务是否开机启动
+systemctl list-unit-files|grep mysqld.service
+#设置开机启动
+systemctl enable service_name
+#关闭开机启动
+systemctl disable service_name
+```
+
+
 
 ## 主机名
 

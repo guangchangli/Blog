@@ -294,3 +294,25 @@ docker cp busybox:/etc/hosts hosts
 docker logs -f busybox
 ```
 
+# 异常
+
+## IPV4
+
+```
+WARNING: IPv4 forwarding is disabled. Networking will not work.
+```
+
+```
+# vi /etc/sysctl.conf
+或者
+# vi /usr/lib/sysctl.d/00-system.conf
+添加如下代码：
+net.ipv4.ip_forward=1
+
+重启network服务
+# systemctl restart network
+
+查看是否修改成功
+# sysctl net.ipv4.ip_forward
+```
+

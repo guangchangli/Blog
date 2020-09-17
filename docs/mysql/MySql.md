@@ -1922,30 +1922,72 @@ delimiter;
 级联复制
 ```
 
-## MySQL 5.7 安装
+# MySQL 8.0 安装 基于 centos 8.0
 
-- 查看是否自带mysql
-
-  ```
-  yum list installed | grep mysql
-  ```
-
-- 删除系统自带 mysql 以及依赖
+- 查看centos 
 
   ```
-  yum -y remove mysqlibs.x86_64
+  cat /etc/redhat-release
+  下载对应组件 8.0 需要四个
+  mysql-community-client
+  mysql-community-common
+  mysql-community-lbs
+  mysql-community-server
+  rpm -ivh 安装顺序 【comon,libs,client,server】
+  安装 server 【rpm -ivh mysql-community-srever --force --nodeps】主要是解决这是由于yum安装了旧版本的GPG keys造成的error错误
   ```
 
-- 安装 weget 
+- 配置
 
   ```
-  yum install -y wget 
+  初始化   mysqld --initialize
+  添加权限 chown -R mysql:mysql /var/lib/mysql/
+  启动	   systemctl start mysqld
+  查看密码	cat /var/log/mysqld.log | grep password
+  登录修改密码
+  alter user 'root'@'localhost' identified by '123456';
+  grant all on *.* to 'test_1'@'localhost' identified by '123456';
   ```
 
-- 添加 rpm 源，选择较新的源
+- 用户管理
 
   ```
-  wget dev.mysql.com/get/mysql-community-release-el5-5.noarch.rpm
+  create user 'xxx'@'%' identified by 'xxx';
+  grant [all|SELECT|update｜insert] on gopher.* to 'gopher'@'%';
+  flush privileges;
+  select user,host from user; #查看用户
+  drop user 'use_name'@'host'; #删除用户
+  ```
+
+- 远程访问
+
+  ```
+  update user set host = '%' where user = 'root'; # 改表
+  GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'xxx'  # 添加用户
+  ```
+
+- 修改用户密码方式
+
+  ```
+  1. grant all on *.* to '用户名'@'登录主机' identified by '密码';
+  2. alter user '用户名'@'登录主机' identified by '密码(自定义)';
+  3. SET PASSWORD FOR '用户名'@'登录主机' = PASSWORD('密码');
+  ```
+
+- 权限管理
+
+  ```
+  select * from mysql.user where user='user_name' and host='host' \G;
+  revoke privileges on database_name.table_name from 'username'@'host';
+  ```
+
+- Change vs modify
+
+  ```
+  alter table  table_name change column_name column_new_name type new_type;
+  alter tablee table_name modify column_name type;
+  change 需要写两次，可以改列名 
+  modify 只能写
   ```
 
   
