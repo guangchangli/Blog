@@ -9,7 +9,7 @@ AMPQ 是一种协议【protocol】，是一种 binary wirelevel protocol 【链�
 这使得实现了 AMQP 的 PROVIDER 天然性就是跨平台的
 ```
 
-![amqp](../picture-md/amqp.png)
+![amqp](/opt/blog/docs/picture-md/amqp.png)
 
 ## 安装
 

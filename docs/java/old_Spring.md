@@ -2,7 +2,7 @@
 
 ## 上下文和容器
 
-![ApplicationContext](picture-md/ApplicationContext.png)
+![ApplicationContext](/opt/blog/docs/picture-md/ApplicationContext.png)
 
 ### BeanFactory
 

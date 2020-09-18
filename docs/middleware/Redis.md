@@ -1,10 +1,88 @@
 # Redis
 
+## Install
+
+```
+centos 8 ,redis 6
+yum install -y gcc
+yum install -y tcl
+tar x
+cd redis-6*
+make MALLOC=libc  //避免提示找不到 jemalloc/jemalloc.h
+make test 				//\o/ All tests passed without errors!
+```
+
+```
+make /opt/redis6
+cd /opt/redis6
+/opt/redis6 mkdir bin
+cp /source/redis-6*/src/redis-cli .
+cp /source/redis-6*/src/redis-server .
+c
+/opt/redis6 mkdir conf
+cp /source/redis-6*/redis.conf
+```
+
+```
+vi redis.conf
+daemonize yes
+maxmemory 128MB 
+
+/bin/redis-server redis.conf
+netstat -anp | grep 6379
+```
+
+## 配置Service 启动
+
+```
+vim /lib/systemd/system/redis.service
+< == > /etc/systemd/system/multi-user.target.wants/redis.service 【ln -s】
+[Unit]
+Description=Redis 	 #描述服务
+After=network.target #描述服务在哪些基础服务启动后再启动 网络服务启动之后再启动
+
+[Service]
+Type=forking			   #是最简单和速度最快的选择
+ExecStart=/opt/redis6/bin/redis-server /opt/redis6/bin/redis.conf #为启动服务的具体运行命令
+ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/opt/redis6/bin/redis-cli -h 127.0.0.1 -p 6379 shutdown  #停止命令
+PrivateTmp=true																										#表示给服务分配独立的临时空间
+[Install]
+WantedBy=multi-user.target																				
+#运行级别下服务安装的相关设置，可设置为多用户，即系统运行级别为3 0-6
+
+```
+
+```
+systemctl daemon-reload # 【重载系统服务】
+启动
+systemctl start redis    
+查看状态
+systemctl status redis
+使开机启动
+systemctl enable redis
+查看是否开机启动
+systemctl list-unit-files|grep redis
+```
+
+## 配置
+
+```
+redis.conf
+1. protected-mode no #默认 yes 内网访问
+2. bind 	# 默认 bind 127.0.0.1
+3. daemonize yes # 默认 no 
+4. requirepass xxx 设置密码
+```
+
+
+
 ## 常用命令
 
 ```java
 info all|default
 info replication 查看状态
+bin/redis-server -v 查看版本
 ```
 
 ### 服务器信息

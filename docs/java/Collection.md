@@ -1,6 +1,14 @@
 # Collection
 
-![iterator](picture-md/iterator.png)
+![iterator](/opt/blog/docs/picture-md/iterator.png)
+
+## collection
+
+```
+
+```
+
+
 
 ## AutoCloseable
 
