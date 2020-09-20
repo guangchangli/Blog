@@ -23,6 +23,26 @@ ctrl u 清除当前行
 ctrl l 清屏
 ```
 
+### 复制粘贴
+
+| yy    | 复制光标所在行                 |
+| ----- | ------------------------------ |
+| Y     | 复制光标所在行位置到行为       |
+| y0    | 复制从光标前一个字符开始到行首 |
+| y(    | 复制到上一行                   |
+| y)    | 复制到下一句的开始             |
+| y{    | 复制到上一段的开始             |
+| y}    | 复制到下一段的开始             |
+| y<CR> | 复制包括当前行在内的两行内容   |
+| yw    | 复制一个单词                   |
+| p     | 粘贴当前缓冲区内容             |
+
+```
+v-y-p 文本块选择->复制->粘贴
+```
+
+### 移动
+
 ```
 k 上移
 j 下移
@@ -779,5 +799,33 @@ chkconfig –level 35 crond on # 加入开机启动
 ```
 crontab [-u user] file # 指定文件作为任务列表文件加入 crontab，不指定将接受输入参数作为文件
 crontab [-u user] [ -e | -l | -r ]
+```
+
+## Centos8 开启后台页面
+
+```
+systemctl enable --now cockpit.socket
+systemctl start cockpit.service
+```
+
+## Centos8 gitlab
+
+```
+1.yum install -y curl policycoreutils-python openssh-server
+2. systemctl enable sshd  
+   systemctl start sshd
+3. systemctl start firewalld   
+	 firewall-cmd --permanent --add-service=http
+	 systemctl reload firewalld
+4. systemctl enable postfix
+   systemctl start postfix
+5. wget https://mirrors.tuna.tsinghua.edu.cn/gitlab-ce/yum/el8/gitlab-ce-12.10.1-ce.0.el8.x86_64.rpm
+6. rpm -ivh gitlab-ce-12.10.1-ce.0.el8.x86_64.rpm
+```
+
+```
+1.编辑端口 vim /etc/gitlab/gitlab.rb
+2.gitlab-ctl reconfigure
+3.gitlab-ctl restart
 ```
 
