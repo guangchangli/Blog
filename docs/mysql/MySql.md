@@ -1907,21 +1907,6 @@ return (select * from xxx);
 delimiter;
 ```
 
-## 主从复制
-
-```
-从结点启动 io 线程监测主结点 bin log 变化，读到 relay log 里，SQL 线程负责从 realy log 日志里面读出 binlog 内容
-更新到  slave 数据库中，保证主从数据库数据一致
-```
-
-```
-一主一从 master 宕机 只能读 不能写
-主主复制 互为主从
-一主多从
-多主一从
-级联复制
-```
-
 # MySQL 8.0 安装 基于 centos 8.0
 
 - 查看centos 
@@ -1946,7 +1931,7 @@ delimiter;
   查看密码	cat /var/log/mysqld.log | grep password
   登录修改密码
   alter user 'root'@'localhost' identified by '123456';
-  grant all on *.* to 'test_1'@'localhost' identified by '123456';
+  grant all on *.* to 'gopher2'@'%' identified by '123456';
   ```
 
 - 用户管理
@@ -1990,9 +1975,67 @@ delimiter;
   modify 只能写
   ```
 
-  
 
+# 主从复制
 
+```
+从结点启动 io 线程监测主结点 bin log 变化，读到 relay log 里，SQL 线程负责从 realy log 日志里面读出 binlog 内容
+更新到  slave 数据库中，保证主从数据库数据一致
+```
+
+```
+一主一从 master 宕机 只能读 不能写
+主主复制 互为主从
+一主多从
+多主一从
+级联复制
+```
+
+## 配置
+
+```
+vi /etc/my.cnf
+添加
+server-id=1
+log-bin=mysql-bin
+log-slave-updates
+slave-skip-errors=all
+```
+
+``登录查看是否成功``
+
+```
+systemctl restart mysqld
+登陆
+show variables like 'server_id'
+```
+
+## 从结点
+
+```
+change master to
+     master_host='xxx',
+     master_user='root',
+     master_password='xxx',
+     master_log_file='mysql-bin.000001',
+     #master position
+     master_log_pos=2350;
+start slave;
+查看状态
+show status slave\G;
+成功状态
+  【Slave_IO_Running: Yes】
+  【Slave_SQL_Running: Yes】
+```
+
+## auth
+
+```
+Authentication plugin 'caching_sha2_password' reported error: Authentication requires secure connection.
+修改密码｜要么就使用强密码
+alter user 'root'@'%' identified with mysql_native_password by 'xxx';
+flush privileges;
+```
 
 ## shardingSphere
 

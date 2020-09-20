@@ -9,9 +9,19 @@ AMPQ 是一种协议【protocol】，是一种 binary wirelevel protocol 【链�
 这使得实现了 AMQP 的 PROVIDER 天然性就是跨平台的
 ```
 
-![amqp](/opt/blog/docs/picture-md/amqp.png)
+![amqp](../picture-md/amqp.png)
 
 ## 安装
+
+### centos8
+
+```
+rpm -ivh libnsl-2.28-101.el8.x86_64.rpm
+rpm -ivh ncurses-compat-libs-6.1-7.20180224.el8.x86_64.rpm
+rpm -ivh compat-openssl10-1.0.2o-3.el8.x86_64.rpm
+```
+
+
 
 ```
 需要 erlang 
@@ -33,11 +43,11 @@ rpm -ivh rabbitmq-server-xxx
 【添加admin】
 	rabbitmqctl add_user admin admin
 【设置权限】 
-	rabbitmqctl set_permissions -p / admin ".*" ".*" ".*"
+	rabbitmqctl set_permissions -p / gopher ".*" ".*" ".*"
 【设置角色】
-	rabbitmqctl set_user_tags admin administrator
+	rabbitmqctl set_user_tags gopher administrator
 【设置远程访问】
-	rabbitmqctl set_permissions -p / admin "." "." ".*"    
+	rabbitmqctl set_permissions -p / gopher "." "." ".*"    
 【默认的guest账户只能本地访问】
 ```
 
@@ -63,6 +73,8 @@ administrator:用户可以做任何监视可以做的事情，管理用户，vho
 	rabbitmqctl set_user_tags {username}{tag}
 【设置权限】
 	rabbitmqctl set_permissions -p / admin "." "." ".*"   
+【查看用户】
+  rabbitmqctl list_users
 ```
 
 ### 虚拟主机

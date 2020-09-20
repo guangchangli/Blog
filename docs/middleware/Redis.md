@@ -13,7 +13,8 @@ make test 				//\o/ All tests passed without errors!
 ```
 
 ```
-make /opt/redis6
+安装
+make PREFIX=/opt/redis6 install
 cd /opt/redis6
 /opt/redis6 mkdir bin
 cp /source/redis-6*/src/redis-cli .
@@ -27,6 +28,7 @@ cp /source/redis-6*/redis.conf
 vi redis.conf
 daemonize yes
 maxmemory 128MB 
+bind 
 
 /bin/redis-server redis.conf
 netstat -anp | grep 6379
@@ -37,6 +39,7 @@ netstat -anp | grep 6379
 ```
 vim /lib/systemd/system/redis.service
 < == > /etc/systemd/system/multi-user.target.wants/redis.service 【ln -s】
+< == > /usr/systemd/system/multi-user.target.wants/redis.service 【ln -s】
 [Unit]
 Description=Redis 	 #描述服务
 After=network.target #描述服务在哪些基础服务启动后再启动 网络服务启动之后再启动
@@ -45,11 +48,30 @@ After=network.target #描述服务在哪些基础服务启动后再启动 网络
 Type=forking			   #是最简单和速度最快的选择
 ExecStart=/opt/redis6/bin/redis-server /opt/redis6/bin/redis.conf #为启动服务的具体运行命令
 ExecReload=/bin/kill -s HUP $MAINPID
-ExecStop=/opt/redis6/bin/redis-cli -h 127.0.0.1 -p 6379 shutdown  #停止命令
-PrivateTmp=true																										#表示给服务分配独立的临时空间
+ExecStop=/bin/kill -s QUIT $MAINPID
+Restart=always
+PrivateTmp=true				#表示给服务分配独立的临时空间
 [Install]
 WantedBy=multi-user.target																				
 #运行级别下服务安装的相关设置，可设置为多用户，即系统运行级别为3 0-6
+```
+
+## 淦 复制不要带注释
+
+```
+[Unit]
+Description=Redis
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/opt/redis6/bin/redis-server /opt/redis6/bin/redis.conf
+ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/bin/kill -s QUIT $MAINPID
+Restart=always
+PrivateTmp=true
+[Install]
+WantedBy=multi-user.target																				
 
 ```
 
@@ -73,6 +95,31 @@ redis.conf
 2. bind 	# 默认 bind 127.0.0.1
 3. daemonize yes # 默认 no 
 4. requirepass xxx 设置密码
+5. maxmemory 128MB
+```
+
+## 日志文件
+
+```
+# Specify the log file name. Also the empty string can be used to force
+# Redis to log on the standard output. Note that if you use standard
+# output for logging but daemonize, logs will be sent to /dev/null
+logfile "/opt/logs/redis/redis.log"
+```
+
+## 快照文件
+
+```
+dir /opt/redis6/snapshotsdata
+```
+
+## io-thread
+
+```
+# So for instance if you have a four cores boxes, try to use 2 or 3 I/O
+# threads, if you have a 8 cores, try to use 6 threads. In order to
+# enable I/O threads use the following configuration directive:
+io-thread 2
 ```
 
 
@@ -83,6 +130,12 @@ redis.conf
 info all|default
 info replication 查看状态
 bin/redis-server -v 查看版本
+redis-server    #Redis服务器的daemon启动程序
+redis-cli       #Redis命令操作工具。当然，你也可以用telnet根据其纯文本协议来操作
+redis-benchmark #Redis性能测试工具，测试Redis在你的系统及你的配置下的读写性能。
+redis-check-aof #对更新日志appendonly.aof检查，是否可用，类似检查mysql binlog的工具
+redis-check-dump    #用于本地数据库rdb文件的检查
+
 ```
 
 ### 服务器信息
